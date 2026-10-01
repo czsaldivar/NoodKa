@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NoodKa.Api/NoodKa.Api.csproj" />
+    <Project Path="src/NoodKa.Application/NoodKa.Application.csproj" />
+    <Project Path="src/NoodKa.Domain/NoodKa.Domain.csproj" />
+    <Project Path="src/NoodKa.Infrastructure/NoodKa.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NoodKa.Application.Tests/NoodKa.Application.Tests.csproj" />
+    <Project Path="tests/NoodKa.Domain.Tests/NoodKa.Domain.Tests.csproj" />
+    <Project Path="tests/NoodKa.Infrastructure.Tests/NoodKa.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

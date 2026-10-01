@@ -1,0 +1,28 @@
+﻿# .NET build artifacts
+**/bin/
+**/obj/
+**/out/
+.vs/
+
+# IDE and user-specific files
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Local secrets and environment configuration
+.env
+.env.*
+!.env.example
+**/secrets.json
+
+# Generated AI media - do not commit generated output
+**/assets/generated-images/
+**/assets/generated-videos/
+**/assets/generated-audio/
+**/assets/generated-renders/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
