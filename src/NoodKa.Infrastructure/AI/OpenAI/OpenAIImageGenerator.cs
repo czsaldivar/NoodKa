@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using NoodKa.Application.AI.Images;
 using NoodKa.Application.Assets;
 using OpenAI.Images;
@@ -75,7 +75,7 @@ public sealed class OpenAIImageGenerator : IImageGenerator
                 imageStream,
                 cancellationToken);
 
-            return ImageGenerationResult.Success(outputPath);
+            return ImageGenerationResult.Success(outputPath, relativePath);
         }
         catch (OperationCanceledException)
         {

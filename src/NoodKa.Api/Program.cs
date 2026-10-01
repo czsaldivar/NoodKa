@@ -1,4 +1,4 @@
-﻿using NoodKa.Application.AI.Images;
+using NoodKa.Application.AI.Images;
 using NoodKa.Application.Assets;
 using NoodKa.Application.Prompts;
 using NoodKa.Application.Shots;
@@ -21,6 +21,8 @@ if (string.IsNullOrWhiteSpace(assetRootPath))
 
 builder.Services.AddSingleton<IAssetStorage>(
     _ => new LocalAssetStorage(assetRootPath));
+
+builder.Services.AddSingleton<IAssetCatalog, InMemoryAssetCatalog>();
 
 // AI image generation
 builder.Services.AddScoped<IImageGenerator, OpenAIImageGenerator>();
@@ -53,8 +55,7 @@ if (app.Environment.IsDevelopment())
                 ?? "Photorealistic cinematic film still",
             characters: body.Characters);
 
-        var shotRequest = new ShotGenerationRequest(
-            promptRequest);
+        var shotRequest = new ShotGenerationRequest(Guid.NewGuid(), promptRequest);
 
         var result = await shotGenerator.GenerateAsync(
             shotRequest,
