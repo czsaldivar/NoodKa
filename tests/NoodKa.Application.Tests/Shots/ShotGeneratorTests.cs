@@ -173,6 +173,24 @@ public sealed class ShotGeneratorTests
 
             return Task.FromResult(result);
         }
+
+        public Task<IReadOnlyList<AssetDescriptor>> GetRecentAsync(
+            int take = 50,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(take);
+
+            IReadOnlyList<AssetDescriptor> result = _assets
+                .OrderByDescending(asset => asset.CreatedAtUtc)
+                .ThenByDescending(asset => asset.Id)
+                .Take(take)
+                .ToArray();
+
+            return Task.FromResult(result);
+        }
+
+
     }
 
     private sealed class ConfigurableImageGenerator(

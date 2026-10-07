@@ -8,7 +8,7 @@ public sealed class Character
 
     public string Name { get; private set; }
 
-    public CharacterGender Gender { get; }
+    public CharacterGender Gender { get; private set; }
 
     public CharacterPersonality? Personality { get; private set; }
 
@@ -30,6 +30,22 @@ public sealed class Character
         Gender = gender;
     }
 
+    public void UpdateProfile(
+        string name,
+        CharacterGender gender,
+        CharacterPersonality? personality,
+        CharacterVisualProfile? visualProfile)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException(
+                "Character name is required.",
+                nameof(name));
+
+        Name = name.Trim();
+        Gender = gender;
+        Personality = personality;
+        VisualProfile = visualProfile;
+    }
     public void SetPersonality(CharacterPersonality personality)
     {
         ArgumentNullException.ThrowIfNull(personality);

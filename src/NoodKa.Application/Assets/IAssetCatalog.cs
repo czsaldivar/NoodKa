@@ -14,4 +14,8 @@ public interface IAssetCatalog
         AssetOwnerType ownerType,
         Guid ownerId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AssetDescriptor>> GetRecentAsync(
+        int take = 50,
+        CancellationToken cancellationToken = default);
 }

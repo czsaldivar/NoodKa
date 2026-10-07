@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using NoodKa.Application.Assets;
 
 namespace NoodKa.Infrastructure.Assets;
@@ -51,4 +51,22 @@ public sealed class InMemoryAssetCatalog : IAssetCatalog
 
         return Task.FromResult(assets);
     }
+
+    public Task<IReadOnlyList<AssetDescriptor>> GetRecentAsync(
+        int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(take);
+
+        IReadOnlyList<AssetDescriptor> assets = _assets.Values
+            .OrderByDescending(asset => asset.CreatedAtUtc)
+            .ThenByDescending(asset => asset.Id)
+            .Take(take)
+            .ToArray();
+
+        return Task.FromResult(assets);
+    }
+
+
 }

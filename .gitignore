@@ -26,3 +26,29 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local SQLite database and runtime files
+**/App_Data/
+*.db-shm
+*.db-wal
+
+# Local backups and recovery files
+**/*.bak
+**/*.backup*
+**/*.before-*
+**/*.pre-*
+
+# Local diagnostics and inspection output
+*inspection*.txt
+*diagnostic*.txt
+**/*-backup*
+**/*.bak-*
+
+# Local recovery/backups
+**/backups/
+
+
+# Temporary development context
+asset-to-shot-context.txt
+
+character-editing-patch-context.txt
