@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 // NOODKA_STORY_MANAGEMENT_V1
 import './App.css'
+import StoryManagement from './components/stories/StoryManagement'
+import type { Story, StoryDetails } from './components/stories/storyTypes'
 
 type Asset = {
   id: string
@@ -80,19 +82,6 @@ function getAssetContext(asset: Asset): string {
   ].filter(Boolean).join(' / ')
 }
 
-type Story = {
-  id: string
-  title: string
-  description: string
-  country: string
-  region: string
-  era: string
-  language: string
-  genre: string
-  tone: string
-  culturalFlavor: string
-}
-
 type Character = {
   id: string
   name: string
@@ -120,35 +109,6 @@ type CharacterForm = {
   hair: string
   typicalClothing: string
   visualStyle: string
-}
-// NOODKA_STORY_DETAILS_V1
-type StoryShot = {
-  id: string
-  sequence: number
-  duration: number
-  action: string
-  emotion: string
-  camera: string
-  lighting: string
-}
-
-type StoryScene = {
-  id: string
-  number: number
-  name: string
-  location: string
-  shots: StoryShot[]
-}
-
-type StoryEpisode = {
-  id: string
-  number: number
-  title: string
-  scenes: StoryScene[]
-}
-
-type StoryDetails = Story & {
-  episodes: StoryEpisode[]
 }
 
 function App() {
@@ -1436,729 +1396,87 @@ function App() {
 
           </>
         ) : activeView === 'stories' ? (
-          <section className="stories-view">
-            <div className="page-heading">
-              <div>
-                <div className="eyebrow">
-                  <span className="eyebrow-line" />
-                  YOUR STORY WORKSPACE
-                </div>
-                <h1>Story <span>Management.</span></h1>
-                <p className="page-description">
-                  Start with an idea. Give your next cinematic story a home.
-                </p>
-              </div>
-              <div className="asset-total">
-                <span>SAVED STORIES</span>
-                <strong>{stories.length}</strong>
-              </div>
-            </div>
-
-            {storiesError && (
-              <div className="notice error-notice" role="alert">
-                <strong>Something needs attention</strong>
-                <span>{storiesError}</span>
-                <span className="notice-hint">
-                  Check that the NoodKa API is running, then try again.
-                </span>
-              </div>
-            )}
-
-            <div className="story-layout">
-              <section className="story-form-panel">
-                <div className="story-panel-kicker">NEW PROJECT</div>
-                <h2>Create a story</h2>
-                <p className="story-panel-description">
-                  Capture the premise now. Episodes and scenes can be added in
-                  a later development milestone.
-                </p>
-
-                <form
-                  className="story-form"
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    void createStory()
-                  }}
-                >
-                  <label htmlFor="story-title">STORY TITLE</label>
-                  <input
-                    id="story-title"
-                    value={storyTitle}
-                    onChange={(event) => setStoryTitle(event.target.value)}
-                    placeholder="e.g. The Last Sunrise"
-                    maxLength={160}
-                    required
-                  />
-
-                  <label htmlFor="story-description">PREMISE / DESCRIPTION</label>
-                  <textarea
-                    id="story-description"
-                    value={storyDescription}
-                    onChange={(event) => setStoryDescription(event.target.value)}
-                    placeholder="What is this story about?"
-                    rows={5}
-                    maxLength={4000}
-                  />
-
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      paddingTop: '18px',
-                      borderTop: '1px solid var(--border)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.14em',
-                        marginBottom: '6px',
-                      }}
-                    >
-                      STORY DNA
-                    </div>
-
-                    <p
-                      className="story-panel-description"
-                      style={{ marginBottom: '16px' }}
-                    >
-                      Define the world, culture, language, and emotional identity
-                      of your story.
-                    </p>
-
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                        gap: '14px',
-                      }}
-                    >
-                      <label htmlFor="story-country">
-                        COUNTRY
-                        <input
-                          id="story-country"
-                          value={storyCountry}
-                          onChange={(event) => setStoryCountry(event.target.value)}
-                          placeholder="Philippines"
-                          maxLength={100}
-                        />
-                      </label>
-
-                      <label htmlFor="story-region">
-                        REGION
-                        <input
-                          id="story-region"
-                          value={storyRegion}
-                          onChange={(event) => setStoryRegion(event.target.value)}
-                          placeholder="Metro Manila"
-                          maxLength={100}
-                        />
-                      </label>
-
-                      <label htmlFor="story-era">
-                        ERA
-                        <input
-                          id="story-era"
-                          value={storyEra}
-                          onChange={(event) => setStoryEra(event.target.value)}
-                          placeholder="Present Day"
-                          maxLength={100}
-                        />
-                      </label>
-
-                      <label htmlFor="story-language">
-                        LANGUAGE
-                        <select
-                          id="story-language"
-                          value={storyLanguage}
-                          onChange={(event) => setStoryLanguage(event.target.value)}
-                        >
-                          <option value="Taglish">Taglish</option>
-                          <option value="Filipino">Filipino</option>
-                          <option value="English">English</option>
-                          <option value="Cebuano">Cebuano</option>
-                          <option value="Ilocano">Ilocano</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </label>
-
-                      <label htmlFor="story-genre">
-                        GENRE
-                        <select
-                          id="story-genre"
-                          value={storyGenre}
-                          onChange={(event) => setStoryGenre(event.target.value)}
-                        >
-                          <option value="Family Drama">Family Drama</option>
-                          <option value="Romance">Romance</option>
-                          <option value="Comedy">Comedy</option>
-                          <option value="Comedy Drama">Comedy Drama</option>
-                          <option value="Thriller">Thriller</option>
-                          <option value="Mystery">Mystery</option>
-                          <option value="Action">Action</option>
-                          <option value="Horror">Horror</option>
-                          <option value="Slice of Life">Slice of Life</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </label>
-
-                      <label htmlFor="story-tone">
-                        TONE
-                        <select
-                          id="story-tone"
-                          value={storyTone}
-                          onChange={(event) => setStoryTone(event.target.value)}
-                        >
-                          <option value="Emotional">Emotional</option>
-                          <option value="Heartwarming">Heartwarming</option>
-                          <option value="Funny">Funny</option>
-                          <option value="Dark">Dark</option>
-                          <option value="Suspenseful">Suspenseful</option>
-                          <option value="Hopeful">Hopeful</option>
-                          <option value="Bittersweet">Bittersweet</option>
-                          <option value="Intense">Intense</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </label>
-
-                      <label
-                        htmlFor="story-cultural-flavor"
-                        style={{ gridColumn: '1 / -1' }}
-                      >
-                        CULTURAL FLAVOR
-                        <input
-                          id="story-cultural-flavor"
-                          value={storyCulturalFlavor}
-                          onChange={(event) =>
-                            setStoryCulturalFlavor(event.target.value)
-                          }
-                          placeholder="Filipino"
-                          maxLength={160}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <button
-                    className="primary-button story-submit"
-                    type="submit"
-                    disabled={creatingStory || !storyTitle.trim()}
-                  >
-                    {creatingStory ? 'Saving story...' : 'Create story'}
-                  </button>
-                </form>
-              </section>
-
-              <section className="story-list-panel">
-                <div className="story-list-heading">
-                  <div>
-                    <div className="story-panel-kicker">YOUR LIBRARY</div>
-                    <h2>Saved stories</h2>
-                  </div>
-                  <span className="toolbar-count">
-                    {stories.length} {stories.length === 1 ? 'story' : 'stories'}
-                  </span>
-                </div>
-
-                {storiesLoading ? (
-                  <div className="story-empty">
-                    <div className="loader" />
-                    <p>Loading your stories...</p>
-                  </div>
-                ) : stories.length === 0 ? (
-                  <div className="story-empty">
-                    <div className="empty-icon">N</div>
-                    <h3>Your next story starts here.</h3>
-                    <p>Create your first story using the form. Saved stories
-                      will appear here.</p>
-                  </div>
-                ) : (
-                  <div className="story-list">
-                    {stories.map((story) => (
-                      <article
-                        className="story-card"
-                        key={story.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={selectedStoryId === story.id}
-                        onClick={() => setSelectedStoryId(story.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault()
-                            setSelectedStoryId(story.id)
-                          }
-                        }}
-                        style={{
-                          cursor: 'pointer',
-                          outline: selectedStoryId === story.id
-                            ? '1px solid var(--amber)'
-                            : 'none',
-                          outlineOffset: '4px',
-                        }}
-                      >
-                        <div className="story-card-mark">N.</div>
-                        <div className="story-card-content">
-                          <h3>{story.title}</h3>
-                          <p>{story.description || 'No description added yet.'}</p>
-                          <span className="story-card-id">{story.id}</span>
-                        </div>
-                        <span className="asset-badge">
-                    {selectedStoryId === story.id ? 'Selected' : 'Saved'}
-                        </span>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
-
-            <section
-              aria-label="Selected story details"
-              style={{
-                marginTop: '4px',
-                marginBottom: '38px',
-                padding: '25px',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                background: 'var(--panel)',
-                minWidth: 0,
-              }}
-            >
-              <div className="story-panel-kicker">STORY STRUCTURE</div>
-              <h2 style={{
-                margin: '10px 0',
-                fontFamily: 'Georgia, serif',
-                fontSize: '25px',
-                fontWeight: 400,
-                overflowWrap: 'anywhere',
-              }}>
-                {storyDetails?.title ?? 'Story details'}
-              </h2>
-
-              {selectedStoryId && storyDetails && (
-                <form
-                  className="story-form"
-                  onSubmit={createEpisode}
-                  style={{ marginBottom: '22px' }}
-                >
-                  <label htmlFor="episode-title">NEW EPISODE</label>
-                  <input
-                    id="episode-title"
-                    type="text"
-                    value={episodeTitle}
-                    onChange={(event) => {
-                      setEpisodeTitle(event.target.value)
-                      setEpisodeError('')
-                      setEpisodeSuccess('')
-                    }}
-                    placeholder="e.g. The Beginning"
-                    maxLength={200}
-                    required
-                    disabled={creatingEpisode}
-                  />
-                  <button
-                    className="story-submit"
-                    type="submit"
-                    disabled={!episodeTitle.trim() || creatingEpisode}
-                  >
-                    <span>
-                      {creatingEpisode ? 'Saving episode...' : 'Create episode'}
-                    </span>
-                  </button>
-
-                  {episodeError && (
-                    <div className="notice error-notice" role="alert">
-                      {episodeError}
-                    </div>
-                  )}
-                  {episodeSuccess && (
-                    <div className="notice" role="status">
-                      {episodeSuccess}
-                    </div>
-                  )}
-                </form>
-              )}
-
-              {detailsLoading ? (
-                <div className="story-empty">
-                  <div className="loader" />
-                    <p>Loading story structure...</p>
-                </div>
-              ) : detailsError ? (
-                <div className="notice error-notice" role="alert">
-                  <strong>Could not load story details</strong>
-                  <span>{detailsError}</span>
-                </div>
-              ) : !selectedStoryId ? (
-                <p className="story-panel-description">
-                  Select a saved story to explore its structure.
-                </p>
-              ) : !storyDetails ? (
-                <p className="story-panel-description">
-                  Story details are not available yet.
-                </p>
-              ) : (
-                <>
-                  <section
-                    style={{
-                      marginBottom: '22px',
-                      padding: '18px',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    <div className="story-panel-kicker">STORY DNA</div>
-
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                        gap: '12px 18px',
-                        marginTop: '14px',
-                      }}
-                    >
-                      <div>
-                        <strong>Country</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.country}
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>Region</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.region}
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>Era</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.era}
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>Language</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.language}
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>Genre</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.genre}
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>Tone</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.tone}
-                        </div>
-                      </div>
-
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <strong>Cultural Flavor</strong>
-                        <div className="story-panel-description">
-                          {storyDetails.culturalFlavor}
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {storyDetails.episodes.length === 0 ? (
-                    <div className="story-empty">
-                      <div className="empty-icon">N</div>
-                      <h3>Your story begins here.</h3>
-                      <p>
-                        This story is saved. It has no episodes yet.
-                      </p>
-                    </div>
-                  ) : (
-                <div style={{ display: 'grid', gap: '18px' }}>
-                  {storyDetails.episodes.map((episode) => (
-                    <article
-                      key={episode.id}
-                      style={{
-                        padding: '18px',
-                        border: '1px solid var(--border)',
-                        borderRadius: '4px',
-                      }}
-                    >
-                      <div className="story-panel-kicker">
-                        EPISODE {episode.number}
-                      </div>
-                      <h3 style={{ margin: '8px 0 14px', fontWeight: 500 }}>
-                        {episode.title || `Episode ${episode.number}`}
-                      </h3>
-
-                      <form
-                        className="story-form"
-                        onSubmit={(event) => createScene(event, episode.id)}
-                        style={{ marginBottom: '18px' }}
-                      >
-                        <label htmlFor={`scene-name-${episode.id}`}>
-                          New scene name
-                        </label>
-                        <input
-                          id={`scene-name-${episode.id}`}
-                          type="text"
-                          value={sceneNames[episode.id] ?? ''}
-                          onChange={(event) =>
-                            setSceneNames((current) => ({
-                              ...current,
-                              [episode.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="e.g. The Letter"
-                          maxLength={200}
-                          required
-                        />
-                        <label htmlFor={`scene-location-${episode.id}`}>
-                          New scene location
-                        </label>
-                        <input
-                          id={`scene-location-${episode.id}`}
-                          type="text"
-                          value={sceneLocations[episode.id] ?? ''}
-                          onChange={(event) =>
-                            setSceneLocations((current) => ({
-                              ...current,
-                              [episode.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="e.g. INT. KITCHEN - NIGHT"
-                          maxLength={200}
-                          required
-                        />
-                        <button
-                          className="story-submit"
-                          type="submit"
-                          disabled={
-                            !((sceneNames[episode.id] ?? '').trim()) ||
-                            !((sceneLocations[episode.id] ?? '').trim()) ||
-                            creatingSceneId !== null
-                          }
-                        >
-                          {creatingSceneId === episode.id
-                            ? 'Saving Scene...'
-                            : 'Create Scene'}
-                        </button>
-                        {sceneErrors[episode.id] && (
-                          <p className="notice error-notice" role="alert">
-                            {sceneErrors[episode.id]}
-                          </p>
-                        )}
-                        {sceneSuccesses[episode.id] && (
-                          <p className="notice" role="status">
-                            {sceneSuccesses[episode.id]}
-                          </p>
-                        )}
-                      </form>
-
-                      {episode.scenes.length === 0 ? (
-                        <p className="story-panel-description">
-                          No scenes have been added to this episode yet.
-                        </p>
-                      ) : (
-                        <div style={{ display: 'grid', gap: '14px' }}>
-                          {episode.scenes.map((scene) => (
-                            <section
-                              key={scene.id}
-                              style={{
-                                paddingLeft: '14px',
-                                borderLeft: '2px solid var(--amber)',
-                              }}
-                            >
-                              <strong>
-                                Scene {scene.number}: {scene.name}
-                              </strong>
-                              <div className="story-panel-description" style={{ marginTop: '4px' }}>{scene.location}</div>
-
-                              <form
-                                className="story-form"
-                                onSubmit={(event) => createShot(event, scene.id)}
-                                style={{
-                                  marginTop: '12px',
-                                  marginBottom: '14px',
-                                  padding: '12px',
-                                  border: '1px solid var(--border)',
-                                  borderRadius: '10px',
-                                  display: 'grid',
-                                  gap: '10px',
-                                }}
-                              >
-                                <strong>Add a shot</strong>
-
-                                <label htmlFor={`shot-duration-${scene.id}`}>
-                                  Duration (seconds)
-                                </label>
-                                <input
-                                  id={`shot-duration-${scene.id}`}
-                                  type="number"
-                                  min="0.1"
-                                  step="0.1"
-                                  required
-                                  value={shotDurations[scene.id] ?? '5'}
-                                  onChange={(event) =>
-                                    setShotDurations((current) => ({
-                                      ...current,
-                                      [scene.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-
-                                <label htmlFor={`shot-action-${scene.id}`}>
-                                  Shot action
-                                </label>
-                                <textarea
-                                  id={`shot-action-${scene.id}`}
-                                  required
-                                  rows={2}
-                                  placeholder="What happens in this shot?"
-                                  value={shotActions[scene.id] ?? ''}
-                                  onChange={(event) =>
-                                    setShotActions((current) => ({
-                                      ...current,
-                                      [scene.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-
-                                <label htmlFor={`shot-emotion-${scene.id}`}>
-                                  Emotion (optional)
-                                </label>
-                                <input
-                                  id={`shot-emotion-${scene.id}`}
-                                  type="text"
-                                  placeholder="e.g. anxious, hopeful"
-                                  value={shotEmotions[scene.id] ?? ''}
-                                  onChange={(event) =>
-                                    setShotEmotions((current) => ({
-                                      ...current,
-                                      [scene.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-
-                                <label htmlFor={`shot-camera-${scene.id}`}>
-                                  Camera (optional)
-                                </label>
-                                <input
-                                  id={`shot-camera-${scene.id}`}
-                                  type="text"
-                                  placeholder="e.g. close-up, slow dolly-in"
-                                  value={shotCameras[scene.id] ?? ''}
-                                  onChange={(event) =>
-                                    setShotCameras((current) => ({
-                                      ...current,
-                                      [scene.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-
-                                <label htmlFor={`shot-lighting-${scene.id}`}>
-                                  Lighting (optional)
-                                </label>
-                                <input
-                                  id={`shot-lighting-${scene.id}`}
-                                  type="text"
-                                  placeholder="e.g. warm practical light"
-                                  value={shotLighting[scene.id] ?? ''}
-                                  onChange={(event) =>
-                                    setShotLighting((current) => ({
-                                      ...current,
-                                      [scene.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-
-                                <button
-                                  type="submit"
-                                  className="story-submit"
-                                  disabled={
-                                    creatingShotId !== null ||
-                                    !(shotActions[scene.id] ?? '').trim() ||
-                                    !(Number(shotDurations[scene.id] ?? '5') > 0)
-                                  }
-                                >
-                                  {creatingShotId === scene.id
-                                    ? 'Saving shot...'
-                                    : 'Save Shot'}
-                                </button>
-
-                                {shotErrors[scene.id] && (
-                                  <p className="notice error-notice" role="alert">
-                                    {shotErrors[scene.id]}
-                                  </p>
-                                )}
-                                {shotSuccesses[scene.id] && (
-                                  <p className="notice" role="status">
-                                    {shotSuccesses[scene.id]}
-                                  </p>
-                                )}
-                              </form>
-
-                              {scene.shots.length === 0 ? (
-                                <p className="story-panel-description">
-                                  No shots in this scene yet.
-                                </p>
-                              ) : (
-                                <ol style={{
-                                  paddingLeft: '20px',
-                                  lineHeight: 1.8,
-                                }}>
-                                  {scene.shots.map((shot) => (
-                                    <li id={`shot-${shot.id}`} key={shot.id} className={highlightedShotId === shot.id ? 'story-shot-target' : undefined} style={{ marginTop: '8px', scrollMarginTop: '100px' }}>
-                                      <strong>Shot {shot.sequence}</strong>
-                                      <span aria-hidden="true">&mdash;</span>
-                                      <div className="story-panel-description">
-                                        {[
-                                          shot.emotion && `Emotion: ${shot.emotion}`,
-                                          shot.camera && `Camera: ${shot.camera}`,
-                                          shot.lighting && `Lighting: ${shot.lighting}`,
-                                        ].filter(Boolean).join(' | ')}
-                                      </div>                                      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginTop: "10px" }}>
-                                        <button type="button" className="story-submit" disabled={generatingImageShotId !== null} onClick={() => generateShotImage(shot.id)}>
-                                          {generatingImageShotId === shot.id ? "Generating image..." : shotImages[shot.id] ? "Regenerate Image" : "Generate Image"}
-                                        </button>
-                                        {shotImages[shot.id] && <a className="primary-button" href={shotImages[shot.id]} target="_blank" rel="noreferrer">Open image</a>}
-                                        {shotImages[shot.id] && (
-                                          <button
-                                            type="button"
-                                            className="secondary-button"
-                                            onClick={() => goToShotAsset(shot.id)}
-                                          >
-                                            View in Asset Library
-                                          </button>
-                                        )}
-                                      </div>
-                                      {imageErrors[shot.id] && <p className="notice error-notice" role="alert">{imageErrors[shot.id]}</p>}
-                                      {shotImages[shot.id] && (
-                                        <div style={{ marginTop: "12px", maxWidth: "560px" }}>
-                                          <img src={shotImages[shot.id]} alt={`Generated image for shot ${shot.sequence}`} style={{ display: "block", width: "100%", height: "auto", borderRadius: "6px", border: "1px solid var(--border)" }} />
-                                          {imagePrompts[shot.id] && <details style={{ marginTop: "8px" }}><summary>View cinematic prompt</summary><p className="story-panel-description">{imagePrompts[shot.id]}</p></details>}
-                                        </div>
-                                      )}
-
-                                    </li>
-                                  ))}
-                                </ol>
-                              )}
-                            </section>
-                          ))}
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          </section>
-        </section>
+          <StoryManagement
+            data={{
+              stories,
+              storiesLoading,
+              storiesError,
+              selectedStoryId,
+              storyDetails,
+              detailsLoading,
+              detailsError,
+              highlightedShotId,
+              creatingStory,
+              creatingEpisode,
+              creatingSceneId,
+              creatingShotId,
+              generatingImageShotId,
+              episodeError,
+              episodeSuccess,
+              sceneErrors,
+              sceneSuccesses,
+              shotErrors,
+              shotSuccesses,
+              shotImages,
+              imageErrors,
+              imagePrompts,
+            }}
+            forms={{
+              story: {
+                storyTitle,
+                storyDescription,
+                storyCountry,
+                storyRegion,
+                storyEra,
+                storyLanguage,
+                storyGenre,
+                storyTone,
+                storyCulturalFlavor,
+                setStoryTitle,
+                setStoryDescription,
+                setStoryCountry,
+                setStoryRegion,
+                setStoryEra,
+                setStoryLanguage,
+                setStoryGenre,
+                setStoryTone,
+                setStoryCulturalFlavor,
+              },
+              episode: {
+                episodeTitle,
+                setEpisodeTitle,
+                setEpisodeError,
+                setEpisodeSuccess,
+              },
+              scene: {
+                sceneNames,
+                sceneLocations,
+                setSceneNames,
+                setSceneLocations,
+              },
+              shot: {
+                shotDurations,
+                shotActions,
+                shotEmotions,
+                shotCameras,
+                shotLighting,
+                setShotDurations,
+                setShotActions,
+                setShotEmotions,
+                setShotCameras,
+                setShotLighting,
+              },
+            }}
+            actions={{
+              createStory,
+              createEpisode,
+              createScene,
+              createShot,
+              generateShotImage,
+              goToShotAsset,
+              selectStory: setSelectedStoryId,
+            }}
+          />
         ) : (
           <section className="characters-view">
             <div className="page-heading">
