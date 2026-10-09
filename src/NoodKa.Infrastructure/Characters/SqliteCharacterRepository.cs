@@ -192,6 +192,43 @@ public sealed class SqliteCharacterRepository : ICharacterRepository
         return character;
     }
 
+    public async Task<bool> AddReferenceAsync(
+        Guid characterId,
+        CharacterReference reference,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        if (characterId == Guid.Empty)
+            return false;
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(
+            cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO CharacterReferences
+                (Id, CharacterId, Type, StorageLocation, Description)
+            SELECT
+                $id, $characterId, $type, $location, $description
+            WHERE EXISTS (
+                SELECT 1 FROM Characters WHERE Id = $characterId
+            );
+            """;
+
+        command.Parameters.AddWithValue("$id", reference.Id.ToString("D"));
+        command.Parameters.AddWithValue(
+            "$characterId", characterId.ToString("D"));
+        command.Parameters.AddWithValue("$type", (int)reference.Type);
+        command.Parameters.AddWithValue("$location", reference.StorageLocation);
+        command.Parameters.AddWithValue(
+            "$description", (object?)reference.Description ?? DBNull.Value);
+
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     public async Task UpdateAsync(
         Character character,
         CancellationToken cancellationToken = default)

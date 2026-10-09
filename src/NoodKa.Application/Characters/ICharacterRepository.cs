@@ -15,6 +15,11 @@ public interface ICharacterRepository
         Guid characterId,
         CancellationToken cancellationToken = default);
 
+    Task<bool> AddReferenceAsync(
+        Guid characterId,
+        CharacterReference reference,
+        CancellationToken cancellationToken = default);
+
     Task UpdateAsync(
         Character character,
         CancellationToken cancellationToken = default);

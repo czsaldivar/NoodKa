@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using NoodKa.Domain.Characters;
 using NoodKa.Infrastructure.Characters;
 
@@ -61,6 +61,8 @@ public sealed class SqliteCharacterRepositoryTests
             SqliteConnection.ClearAllPools();
 
             if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
     }
@@ -104,6 +106,8 @@ public sealed class SqliteCharacterRepositoryTests
             SqliteConnection.ClearAllPools();
 
             if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
     }
@@ -139,6 +143,76 @@ public sealed class SqliteCharacterRepositoryTests
             SqliteConnection.ClearAllPools();
 
             if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AddReferenceAsync_PersistsReferenceAcrossRepositoryInstances()
+    {
+        var directory = CreateTestDirectory();
+
+        try
+        {
+            var databasePath = Path.Combine(directory, "characters.db");
+            var character = new Character("Test Character");
+            await new SqliteCharacterRepository(databasePath).AddAsync(character);
+
+            var reference = new CharacterReference(
+                CharacterReferenceType.Face,
+                "reference-01.png",
+                "Primary face reference");
+
+            var added = await new SqliteCharacterRepository(databasePath)
+                .AddReferenceAsync(character.Id, reference);
+
+            var retrieved = await new SqliteCharacterRepository(databasePath)
+                .GetByIdAsync(character.Id);
+
+            Assert.True(added);
+            Assert.NotNull(retrieved);
+
+            var savedReference = Assert.Single(retrieved.References);
+            Assert.Equal(reference.Id, savedReference.Id);
+            Assert.Equal(CharacterReferenceType.Face, savedReference.Type);
+            Assert.Equal("reference-01.png", savedReference.StorageLocation);
+            Assert.Equal("Primary face reference", savedReference.Description);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AddReferenceAsync_MissingCharacter_ReturnsFalse()
+    {
+        var directory = CreateTestDirectory();
+
+        try
+        {
+            var repository = new SqliteCharacterRepository(
+                Path.Combine(directory, "characters.db"));
+
+            var reference = new CharacterReference(
+                CharacterReferenceType.Face,
+                "reference-01.png");
+
+            var added = await repository.AddReferenceAsync(
+                Guid.NewGuid(), reference);
+
+            Assert.False(added);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
     }
@@ -162,6 +236,8 @@ public sealed class SqliteCharacterRepositoryTests
             SqliteConnection.ClearAllPools();
 
             if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
+                if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
     }
