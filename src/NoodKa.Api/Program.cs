@@ -10,6 +10,7 @@ using NoodKa.Infrastructure.AI.OpenAI;
 using NoodKa.Infrastructure.Assets;
 using NoodKa.Infrastructure.Stories;
 using NoodKa.Domain.Stories;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,31 @@ if (string.IsNullOrWhiteSpace(characterDatabasePath))
 
 builder.Services.AddSingleton<ICharacterRepository>(
     _ => new SqliteCharacterRepository(characterDatabasePath));
+// Character reference image storage
+const long MaxCharacterReferenceBytes = 5 * 1024 * 1024;
+const long MaxCharacterReferenceRequestBytes =
+    MaxCharacterReferenceBytes + 64 * 1024;
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = MaxCharacterReferenceRequestBytes;
+    options.ValueCountLimit = 8;
+    options.ValueLengthLimit = 1024;
+});
+
+var characterReferenceRootPath =
+    builder.Configuration["Characters:ReferenceRootPath"];
+
+if (string.IsNullOrWhiteSpace(characterReferenceRootPath))
+{
+    characterReferenceRootPath = Path.Combine(
+        builder.Environment.ContentRootPath,
+        "App_Data",
+        "character-references");
+}
+
+builder.Services.AddSingleton<ICharacterReferenceStorage>(
+    _ => new LocalCharacterReferenceStorage(characterReferenceRootPath));
 // AI image generation
 builder.Services.AddScoped<IImageGenerator, OpenAIImageGenerator>();
 
@@ -524,6 +550,205 @@ app.MapGet("/api/characters/{characterId:guid}", async (
 })
 .WithName("GetCharacterById");
 
+app.MapPost("/api/characters/{characterId:guid}/references/face", async (
+    Guid characterId,
+    HttpRequest request,
+    ICharacterRepository repository,
+    ICharacterReferenceStorage storage,
+    CancellationToken cancellationToken) =>
+{
+    if (!request.HasFormContentType)
+    {
+        return Results.BadRequest(new
+        {
+            error = "Send a multipart/form-data request containing one file field named 'file'."
+        });
+    }
+
+    var character = await repository.GetByIdAsync(
+        characterId, cancellationToken);
+
+    if (character is null)
+        return Results.NotFound(new { error = "Character not found." });
+
+    var form = await request.ReadFormAsync(cancellationToken);
+
+    if (form.Files.Count != 1)
+    {
+        return Results.BadRequest(new
+        {
+            error = "Upload exactly one image using the 'file' field."
+        });
+    }
+
+    var file = form.Files.GetFile("file");
+
+    if (file is null || file.Length == 0)
+        return Results.BadRequest(new { error = "An image file is required." });
+
+    if (file.Length > MaxCharacterReferenceBytes)
+    {
+        return Results.BadRequest(new
+        {
+            error = "The image must not exceed 5 MB."
+        });
+    }
+
+    // Buffer only after the multipart parser has applied its configured limit.
+    await using var imageBuffer = new MemoryStream();
+    await file.CopyToAsync(imageBuffer, cancellationToken);
+
+    if (imageBuffer.Length == 0 ||
+        imageBuffer.Length > MaxCharacterReferenceBytes)
+    {
+        return Results.BadRequest(new
+        {
+            error = "The image must be non-empty and no larger than 5 MB."
+        });
+    }
+
+    var imageBytes = imageBuffer.ToArray();
+
+    var isPng = imageBytes.AsSpan().StartsWith(
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
+
+    var isJpeg = imageBytes.Length >= 3 &&
+        imageBytes[0] == 0xFF &&
+        imageBytes[1] == 0xD8 &&
+        imageBytes[2] == 0xFF;
+
+    if (!isPng && !isJpeg)
+    {
+        return Results.BadRequest(new
+        {
+            error = "Only JPEG and PNG images are supported."
+        });
+    }
+
+    var extension = isPng ? ".png" : ".jpg";
+    var contentType = isPng ? "image/png" : "image/jpeg";
+    var fileName = $"{Guid.NewGuid():N}{extension}";
+
+    var description = form["description"].ToString().Trim();
+    if (description.Length > 300)
+    {
+        return Results.BadRequest(new
+        {
+            error = "Description must not exceed 300 characters."
+        });
+    }
+
+    await using var uploadStream = new MemoryStream(imageBytes);
+
+    await storage.SaveAsync(
+        characterId,
+        fileName,
+        uploadStream,
+        cancellationToken);
+
+    var reference = new CharacterReference(
+        CharacterReferenceType.Face,
+        fileName,
+        string.IsNullOrWhiteSpace(description) ? null : description);
+
+    bool added;
+
+    try
+    {
+        added = await repository.AddReferenceAsync(
+            characterId, reference, cancellationToken);
+    }
+    catch
+    {
+        // Preserve the original exception if cleanup itself fails.
+        try
+        {
+            await storage.DeleteAsync(
+                characterId, fileName, CancellationToken.None);
+        }
+        catch
+        {
+            // Best-effort cleanup.
+        }
+
+        throw;
+    }
+
+    if (!added)
+    {
+        // Best-effort cleanup; preserve the intended not-found response.
+        try
+        {
+            await storage.DeleteAsync(
+                characterId, fileName, CancellationToken.None);
+        }
+        catch
+        {
+            // Cleanup failure must not mask the not-found result.
+        }
+
+        return Results.NotFound(new { error = "Character not found." });
+    }
+
+    return Results.Created(
+        $"/api/characters/{characterId}/references/{reference.Id}/content",
+        new
+        {
+            reference.Id,
+            Type = reference.Type.ToString(),
+            reference.Description,
+            ContentUrl = $"/api/characters/{characterId}/references/{reference.Id}/content",
+            ContentType = contentType
+        });
+})
+.WithName("UploadCharacterFaceReference");
+
+app.MapGet(
+    "/api/characters/{characterId:guid}/references/{referenceId:guid}/content",
+    async (
+        Guid characterId,
+        Guid referenceId,
+        ICharacterRepository repository,
+        ICharacterReferenceStorage storage,
+        CancellationToken cancellationToken) =>
+    {
+        var character = await repository.GetByIdAsync(
+            characterId, cancellationToken);
+
+        if (character is null)
+            return Results.NotFound(new { error = "Character not found." });
+
+        var reference = character.References.FirstOrDefault(
+            item => item.Id == referenceId);
+
+        if (reference is null ||
+            string.IsNullOrWhiteSpace(reference.StorageLocation) ||
+            reference.StorageLocation !=
+                Path.GetFileName(reference.StorageLocation))
+        {
+            return Results.NotFound(new { error = "Reference image not found." });
+        }
+
+        var fileName = reference.StorageLocation;
+        var isPng = fileName.EndsWith(
+            ".png", StringComparison.OrdinalIgnoreCase);
+        var isJpeg = fileName.EndsWith(
+            ".jpg", StringComparison.OrdinalIgnoreCase);
+
+        if (!isPng && !isJpeg)
+            return Results.NotFound(new { error = "Reference image not found." });
+
+        var stream = await storage.OpenReadAsync(
+            characterId, fileName, cancellationToken);
+
+        if (stream is null)
+            return Results.NotFound(new { error = "Reference image file not found." });
+
+        return Results.File(
+            stream,
+            isPng ? "image/png" : "image/jpeg");
+    })
+.WithName("GetCharacterReferenceContent");
 app.MapPut("/api/characters/{characterId:guid}", async (
     Guid characterId,
     UpdateCharacterRequest body,
