@@ -1,6 +1,7 @@
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
+﻿import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Story, StoryDetails } from './storyTypes';
 import StoryCreationForm from './StoryCreationForm';
+import SceneCreationForm from './SceneCreationForm';
 import StoryLibrary from './StoryLibrary';
 import StoryDNA from './StoryDNA';
 import type { StoryCreationFormProps } from './storyCreationFormTypes';
@@ -305,69 +306,17 @@ export default function StoryManagement({
                   {episode.title || `Episode ${episode.number}`}
                 </h3>
 
-                <form
-                  className="story-form"
-                  onSubmit={(event) => createScene(event, episode.id)}
-                  style={{ marginBottom: '18px' }}
-                >
-                  <label htmlFor={`scene-name-${episode.id}`}>
-                    New scene name
-                  </label>
-                  <input
-                    id={`scene-name-${episode.id}`}
-                    type="text"
-                    value={sceneNames[episode.id] ?? ''}
-                    onChange={(event) =>
-                      setSceneNames((current) => ({
-                        ...current,
-                        [episode.id]: event.target.value,
-                      }))
-                    }
-                    placeholder="e.g. The Letter"
-                    maxLength={200}
-                    required
-                  />
-                  <label htmlFor={`scene-location-${episode.id}`}>
-                    New scene location
-                  </label>
-                  <input
-                    id={`scene-location-${episode.id}`}
-                    type="text"
-                    value={sceneLocations[episode.id] ?? ''}
-                    onChange={(event) =>
-                      setSceneLocations((current) => ({
-                        ...current,
-                        [episode.id]: event.target.value,
-                      }))
-                    }
-                    placeholder="e.g. INT. KITCHEN - NIGHT"
-                    maxLength={200}
-                    required
-                  />
-                  <button
-                    className="story-submit"
-                    type="submit"
-                    disabled={
-                      !((sceneNames[episode.id] ?? '').trim()) ||
-                      !((sceneLocations[episode.id] ?? '').trim()) ||
-                      creatingSceneId !== null
-                    }
-                  >
-                    {creatingSceneId === episode.id
-                      ? 'Saving Scene...'
-                      : 'Create Scene'}
-                  </button>
-                  {sceneErrors[episode.id] && (
-                    <p className="notice error-notice" role="alert">
-                      {sceneErrors[episode.id]}
-                    </p>
-                  )}
-                  {sceneSuccesses[episode.id] && (
-                    <p className="notice" role="status">
-                      {sceneSuccesses[episode.id]}
-                    </p>
-                  )}
-                </form>
+                <SceneCreationForm
+                  episodeId={episode.id}
+                  sceneName={sceneNames[episode.id] ?? ''}
+                  sceneLocation={sceneLocations[episode.id] ?? ''}
+                  setSceneNames={setSceneNames}
+                  setSceneLocations={setSceneLocations}
+                  creatingSceneId={creatingSceneId}
+                  sceneError={sceneErrors[episode.id]}
+                  sceneSuccess={sceneSuccesses[episode.id]}
+                  createScene={createScene}
+                />
 
                 {episode.scenes.length === 0 ? (
                   <p className="story-panel-description">
