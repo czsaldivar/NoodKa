@@ -26,6 +26,12 @@ public sealed class CinematicPromptBuilder
             prompt.Append(". ");
         }
 
+        if (!string.IsNullOrWhiteSpace(request.CharacterVisualDescription))
+        {
+            prompt.Append(
+                $"Character appearance reference: {request.CharacterVisualDescription.Trim().TrimEnd('.')}. ");
+        }
+
         prompt.Append(
             $"The scene takes place in {request.Location}. ");
 

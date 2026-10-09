@@ -95,7 +95,9 @@ if (string.IsNullOrWhiteSpace(characterReferenceRootPath))
 builder.Services.AddSingleton<ICharacterReferenceStorage>(
     _ => new LocalCharacterReferenceStorage(characterReferenceRootPath));
 // AI image generation
-builder.Services.AddScoped<IImageGenerator, OpenAIImageGenerator>();
+builder.Services.AddHttpClient<OpenAIImageGenerator>();
+builder.Services.AddScoped<IImageGenerator>(
+    services => services.GetRequiredService<OpenAIImageGenerator>());
 
 // Cinematic shot generation pipeline
 builder.Services.AddScoped<
@@ -495,8 +497,11 @@ app.MapPost("/api/stories", async (
 
 app.MapPost("/api/shots/{shotId:guid}/generate-image", async (
     Guid shotId,
+    Guid? characterId,
     IStoryRepository storyRepository,
     IShotGenerator shotGenerator,
+    ICharacterRepository characterRepository,
+    ICharacterReferenceStorage characterReferenceStorage,
     CancellationToken cancellationToken) =>
 {
     var stories = await storyRepository.GetAllAsync(cancellationToken);
@@ -509,21 +514,176 @@ app.MapPost("/api/shots/{shotId:guid}/generate-image", async (
     if (match is null)
         return Results.NotFound(new { error = "Shot not found." });
 
+    string? referenceImageLocation = null;
+    byte[]? referenceImageBytes = null;
+    string? referenceImageFileName = null;
+    string? selectedCharacterName = null;
+    string? selectedCharacterVisualDescription = null;
+
+    if (characterId.HasValue)
+    {
+        var character = await characterRepository.GetByIdAsync(
+            characterId.Value,
+            cancellationToken);
+
+        if (character is null)
+            return Results.NotFound(new { error = "Selected character not found." });
+
+        selectedCharacterName = character.Name;
+
+        if (character.VisualProfile is { } visualProfile)
+        {
+            selectedCharacterVisualDescription = string.Join(
+                "; ",
+                new[]
+                {
+                    visualProfile.Appearance,
+                    string.IsNullOrWhiteSpace(visualProfile.Hair) ? null : $"Hair: {visualProfile.Hair}",
+                    string.IsNullOrWhiteSpace(visualProfile.TypicalClothing) ? null : $"Typical clothing: {visualProfile.TypicalClothing}",
+                    string.IsNullOrWhiteSpace(visualProfile.VisualStyle) ? null : $"Visual style: {visualProfile.VisualStyle}"
+                }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        }
+
+        var faceReference = character.References.FirstOrDefault(
+            reference => reference.Type == NoodKa.Domain.Characters.CharacterReferenceType.Face);
+
+        if (faceReference is null)
+        {
+            return Results.BadRequest(new
+            {
+                error = "The selected character has no Face reference image. Upload one before generating this shot."
+            });
+        }
+
+        referenceImageFileName = Path.GetFileName(faceReference.StorageLocation);
+        referenceImageLocation = faceReference.StorageLocation;
+
+        if (string.IsNullOrWhiteSpace(referenceImageFileName))
+        {
+            return Results.BadRequest(new
+            {
+                error = "The selected character's Face reference has an invalid filename."
+            });
+        }
+
+        var extension = Path.GetExtension(referenceImageFileName);
+
+        if (!string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.BadRequest(new
+            {
+                error = "The selected character's Face reference must be a PNG or JPEG image."
+            });
+        }
+
+        var referenceStream = await characterReferenceStorage.OpenReadAsync(
+            character.Id,
+            referenceImageFileName,
+            cancellationToken);
+
+        if (referenceStream is null)
+        {
+            return Results.NotFound(new
+            {
+                error = "The selected character's Face reference image could not be found in storage."
+            });
+        }
+
+        await using (referenceStream)
+        await using (var buffer = new MemoryStream())
+        {
+            await referenceStream.CopyToAsync(buffer, cancellationToken);
+            referenceImageBytes = buffer.ToArray();
+        }
+
+        if (referenceImageBytes.Length == 0)
+        {
+            return Results.BadRequest(new
+            {
+                error = "The selected character's Face reference image is empty."
+            });
+        }
+
+        if (referenceImageBytes.Length > MaxCharacterReferenceBytes)
+        {
+            return Results.BadRequest(new
+            {
+                error = "The selected character's Face reference image must not exceed 5 MB."
+            });
+        }
+
+        var isPng = referenceImageBytes.AsSpan().StartsWith(
+            new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
+
+        var isJpeg = referenceImageBytes.Length >= 3 &&
+            referenceImageBytes[0] == 0xFF &&
+            referenceImageBytes[1] == 0xD8 &&
+            referenceImageBytes[2] == 0xFF;
+
+        if (!isPng && !isJpeg)
+        {
+            return Results.BadRequest(new
+            {
+                error = "The stored Face reference is not a valid PNG or JPEG image."
+            });
+        }
+
+        var extensionMatchesContent =
+            (string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase) && isPng) ||
+            ((string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)) && isJpeg);
+
+        if (!extensionMatchesContent)
+        {
+            return Results.BadRequest(new
+            {
+                error = "The stored Face reference file extension does not match its image format."
+            });
+        }
+    }
+
     var promptRequest = new CinematicPromptRequest(
         location: match.Scene.Location,
         action: match.Shot.Action,
         emotion: match.Shot.Emotion,
         camera: match.Shot.Camera,
         lighting: match.Shot.Lighting,
-        visualStyle: "Photorealistic cinematic film still");
+        visualStyle: "Photorealistic cinematic film still",
+        characters: selectedCharacterName is null
+            ? null
+            : new[] { selectedCharacterName },
+        characterVisualDescription: selectedCharacterVisualDescription);
 
     var result = await shotGenerator.GenerateAsync(
-        new ShotGenerationRequest(match.Shot.Id, promptRequest), cancellationToken);
+        new ShotGenerationRequest(
+            match.Shot.Id,
+            promptRequest,
+            referenceImageLocation: referenceImageLocation,
+            referenceImageBytes: referenceImageBytes,
+            referenceImageFileName: referenceImageFileName),
+        cancellationToken);
 
     if (!result.Succeeded)
-        return Results.Json(new { error = result.ImageResult.ErrorMessage ?? "Image generation failed.", prompt = result.Prompt }, statusCode: StatusCodes.Status502BadGateway);
+    {
+        return Results.Json(
+            new
+            {
+                error = result.ImageResult.ErrorMessage ?? "Image generation failed.",
+                prompt = result.Prompt
+            },
+            statusCode: StatusCodes.Status502BadGateway);
+    }
 
-    return Results.Ok(new { shotId = match.Shot.Id, prompt = result.Prompt, imageId = result.ImageResult.Id, imageUrl = $"/api/assets/{result.ImageResult.Id}" });
+    return Results.Ok(new
+    {
+        shotId = match.Shot.Id,
+        characterId,
+        prompt = result.Prompt,
+        imageId = result.ImageResult.Id,
+        imageUrl = $"/api/assets/{result.ImageResult.Id}"
+    });
 }).WithName("GenerateSavedShotImage");
 
 // Character endpoints

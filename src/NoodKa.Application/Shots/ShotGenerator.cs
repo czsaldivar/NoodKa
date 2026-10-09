@@ -1,4 +1,4 @@
-﻿using NoodKa.Application.AI.Images;
+using NoodKa.Application.AI.Images;
 using NoodKa.Application.Assets;
 using NoodKa.Application.Prompts;
 
@@ -34,7 +34,9 @@ public sealed class ShotGenerator : IShotGenerator
 
         var imageRequest = new ImageGenerationRequest(
             promptResult.Prompt,
-            request.ReferenceImageLocation);
+            request.ReferenceImageLocation,
+            referenceImageBytes: request.ReferenceImageBytes,
+            referenceImageFileName: request.ReferenceImageFileName);
 
         var imageResult = await _imageGenerator.GenerateAsync(
             imageRequest,

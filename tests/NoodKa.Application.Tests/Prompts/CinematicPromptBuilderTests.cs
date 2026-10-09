@@ -80,6 +80,29 @@ public sealed class CinematicPromptBuilderTests
     }
 
     [Fact]
+    public void Build_IncludesCharacterVisualDescriptionWhenProvided()
+    {
+        var builder = new CinematicPromptBuilder();
+
+        var request = new CinematicPromptRequest(
+            location: "a Filipino home kitchen",
+            action: "opens a cabinet",
+            emotion: "concerned",
+            camera: "medium close-up",
+            lighting: "warm morning light",
+            visualStyle: "realistic Filipino drama",
+            characters: ["Jowa-an"],
+            characterVisualDescription: "Appearance: oval face; Hair: long black hair; Typical clothing: blue blouse");
+
+        var result = builder.Build(request);
+
+        Assert.Contains("Jowa-an", result.Prompt);
+        Assert.Contains("Character appearance reference", result.Prompt);
+        Assert.Contains("long black hair", result.Prompt);
+        Assert.Contains("blue blouse", result.Prompt);
+    }
+
+    [Fact]
     public void Build_RejectsMissingLocation()
     {
         Assert.Throws<ArgumentException>(

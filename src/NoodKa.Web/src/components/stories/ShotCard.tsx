@@ -1,4 +1,4 @@
-﻿import type { ShotCardProps } from './shotCardTypes';
+import type { ShotCardProps } from './shotCardTypes';
 
 export default function ShotCard({
   shot,
@@ -7,6 +7,9 @@ export default function ShotCard({
   shotImages,
   imageErrors,
   imagePrompts,
+  charactersForShotGeneration,
+  shotCharacterIds,
+  selectShotCharacter,
   generateShotImage,
   goToShotAsset,
 }: ShotCardProps) {
@@ -36,6 +39,32 @@ export default function ShotCard({
           marginTop: '10px',
         }}
       >
+        <label
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            alignItems: 'center',
+          }}
+        >
+          <span>Character reference</span>
+          <select
+            aria-label={`Character reference for shot ${shot.sequence}`}
+            value={shotCharacterIds[shot.id] ?? ''}
+            onChange={(event) =>
+              selectShotCharacter(shot.id, event.target.value)
+            }
+            disabled={generatingImageShotId !== null}
+          >
+            <option value="">No character (text-only)</option>
+            {charactersForShotGeneration.map((character) => (
+              <option key={character.id} value={character.id}>
+                {character.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <button
           type="button"
           className="story-submit"

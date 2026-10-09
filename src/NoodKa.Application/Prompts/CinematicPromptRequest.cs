@@ -16,6 +16,8 @@ public sealed class CinematicPromptRequest
 
     public IReadOnlyList<string> Characters { get; }
 
+    public string CharacterVisualDescription { get; }
+
     public CinematicPromptRequest(
         string location,
         string action,
@@ -23,7 +25,8 @@ public sealed class CinematicPromptRequest
         string camera,
         string lighting,
         string visualStyle,
-        IEnumerable<string>? characters = null)
+        IEnumerable<string>? characters = null,
+        string? characterVisualDescription = null)
     {
         if (string.IsNullOrWhiteSpace(location))
             throw new ArgumentException(
@@ -45,5 +48,8 @@ public sealed class CinematicPromptRequest
         Characters =
             characters?.ToArray()
             ?? [];
+
+        CharacterVisualDescription =
+            characterVisualDescription?.Trim() ?? string.Empty;
     }
 }

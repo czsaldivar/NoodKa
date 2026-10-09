@@ -30,6 +30,8 @@ type StoryManagementProps = {
     shotImages: Record<string, string>;
     imageErrors: Record<string, string>;
     imagePrompts: Record<string, string>;
+    charactersForShotGeneration: Array<{ id: string; name: string }>;
+    shotCharacterIds: Record<string, string>;
   };
 
   forms: {
@@ -75,6 +77,7 @@ type StoryManagementProps = {
       sceneId: string,
     ) => Promise<void>;
     generateShotImage: (shotId: string) => Promise<void>;
+    selectShotCharacter: (shotId: string, characterId: string) => void;
     goToShotAsset: (shotId: string) => void;
     selectStory: (storyId: string) => void;
   };
@@ -108,6 +111,8 @@ export default function StoryManagement({
     shotImages,
     imageErrors,
     imagePrompts,
+    charactersForShotGeneration,
+    shotCharacterIds,
   } = data;
 
   const {
@@ -143,6 +148,7 @@ export default function StoryManagement({
     createScene,
     createShot,
     generateShotImage,
+    selectShotCharacter,
     goToShotAsset,
     selectStory: setSelectedStoryId,
   } = actions;
@@ -326,6 +332,9 @@ export default function StoryManagement({
                   shotImages,
                   imageErrors,
                   imagePrompts,
+                  charactersForShotGeneration,
+                  shotCharacterIds,
+                  selectShotCharacter,
                   generateShotImage,
                   goToShotAsset,
                 }}

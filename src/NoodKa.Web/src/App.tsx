@@ -185,6 +185,14 @@ function App() {
   const [shotImages, setShotImages] = useState<Record<string, string>>({})
   const [imageErrors, setImageErrors] = useState<Record<string, string>>({})
   const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({})
+  const [shotCharacterIds, setShotCharacterIds] = useState<Record<string, string>>({})
+  const charactersForShotGeneration = characters
+    .filter((character) =>
+      character.references.some((reference) =>
+        reference.type.toLowerCase() === 'face',
+      ),
+    )
+    .map(({ id, name }) => ({ id, name }))
 
 
 
@@ -738,12 +746,28 @@ function App() {
     }
   }
 
+  function selectShotCharacter(shotId: string, characterId: string) {
+    setShotCharacterIds((current) => {
+      const updated = { ...current }
+      if (characterId) updated[shotId] = characterId
+      else delete updated[shotId]
+      return updated
+    })
+  }
+
   async function generateShotImage(shotId: string) {
     if (generatingImageShotId) return
     setGeneratingImageShotId(shotId)
     setImageErrors((current) => ({ ...current, [shotId]: "" }))
     try {
-      const response = await fetch(`/api/shots/${shotId}/generate-image`, { method: "POST" })
+      const selectedCharacterId = shotCharacterIds[shotId]
+      const characterQuery = selectedCharacterId
+        ? `?characterId=${encodeURIComponent(selectedCharacterId)}`
+        : ''
+      const response = await fetch(
+        `/api/shots/${shotId}/generate-image${characterQuery}`,
+        { method: "POST" },
+      )
       const payload: { error?: string; imageUrl?: string; prompt?: string } = await response.json()
       if (!response.ok) throw new Error(payload.error ?? `Image generation failed (HTTP ${response.status}).`)
       if (!payload.imageUrl) throw new Error("The API did not return an image URL.")
@@ -1420,6 +1444,8 @@ function App() {
               shotImages,
               imageErrors,
               imagePrompts,
+              charactersForShotGeneration,
+              shotCharacterIds,
             }}
             forms={{
               story: {
@@ -1473,6 +1499,7 @@ function App() {
               createScene,
               createShot,
               generateShotImage,
+              selectShotCharacter,
               goToShotAsset,
               selectStory: setSelectedStoryId,
             }}

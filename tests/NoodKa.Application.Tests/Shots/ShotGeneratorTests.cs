@@ -56,6 +56,69 @@ public sealed class ShotGeneratorTests
     }
 
     [Fact]
+    public async Task GenerateAsync_ForwardsCharacterReferenceImage()
+    {
+        var referenceBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 };
+        const string referenceFileName = "face-reference.jpg";
+
+        var imageGenerator = new MockImageGenerator();
+        var shotGenerator = new ShotGenerator(
+            new CinematicPromptBuilder(),
+            imageGenerator,
+            new TestAssetCatalog());
+
+        var request = new ShotGenerationRequest(
+            Guid.NewGuid(),
+            new CinematicPromptRequest(
+                location: "a Filipino home",
+                action: "the character looks toward the doorway",
+                emotion: "curious",
+                camera: "medium shot",
+                lighting: "soft daylight",
+                visualStyle: "cinematic drama"),
+            referenceImageLocation: "characters/test/face-reference.jpg",
+            referenceImageBytes: referenceBytes,
+            referenceImageFileName: referenceFileName);
+
+        var result = await shotGenerator.GenerateAsync(request);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(imageGenerator.LastRequest);
+        Assert.Equal(referenceBytes, imageGenerator.LastRequest!.ReferenceImageBytes);
+        Assert.Equal(referenceFileName, imageGenerator.LastRequest.ReferenceImageFileName);
+        Assert.Equal(
+            "characters/test/face-reference.jpg",
+            imageGenerator.LastRequest.ReferenceImageLocation);
+    }
+    [Fact]
+    public async Task GenerateAsync_WithoutCharacterReference_UsesTextOnlyRequest()
+    {
+        var imageGenerator = new MockImageGenerator();
+        var shotGenerator = new ShotGenerator(
+            new CinematicPromptBuilder(),
+            imageGenerator,
+            new TestAssetCatalog());
+
+        var request = new ShotGenerationRequest(
+            Guid.NewGuid(),
+            new CinematicPromptRequest(
+                location: "a Filipino home kitchen",
+                action: "the character opens a cabinet",
+                emotion: "curious",
+                camera: "medium shot",
+                lighting: "warm kitchen lighting",
+                visualStyle: "cinematic Filipino drama"));
+
+        var result = await shotGenerator.GenerateAsync(request);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(imageGenerator.LastRequest);
+        Assert.Null(imageGenerator.LastRequest!.ReferenceImageBytes);
+        Assert.Null(imageGenerator.LastRequest.ReferenceImageFileName);
+        Assert.Null(imageGenerator.LastRequest.ReferenceImageLocation);
+        Assert.Contains("opens a cabinet", imageGenerator.LastRequest.Prompt);
+    }
+    [Fact]
     public async Task GenerateAsync_RegistersGeneratedImageAgainstShot()
     {
         var shotId = Guid.NewGuid();
