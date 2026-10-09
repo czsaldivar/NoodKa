@@ -1,10 +1,11 @@
-﻿import type { Dispatch, FormEvent, SetStateAction } from 'react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Story, StoryDetails } from './storyTypes';
 import StoryCreationForm from './StoryCreationForm';
 import SceneCreationForm from './SceneCreationForm';
 import StoryLibrary from './StoryLibrary';
 import StoryDNA from './StoryDNA';
 import type { StoryCreationFormProps } from './storyCreationFormTypes';
+import ShotCreationForm from './ShotCreationForm';
 
 type StoryManagementProps = {
   data: {
@@ -337,129 +338,23 @@ export default function StoryManagement({
                         </strong>
                         <div className="story-panel-description" style={{ marginTop: '4px' }}>{scene.location}</div>
 
-                        <form
-                          className="story-form"
-                          onSubmit={(event) => createShot(event, scene.id)}
-                          style={{
-                            marginTop: '12px',
-                            marginBottom: '14px',
-                            padding: '12px',
-                            border: '1px solid var(--border)',
-                            borderRadius: '10px',
-                            display: 'grid',
-                            gap: '10px',
-                          }}
-                        >
-                          <strong>Add a shot</strong>
-
-                          <label htmlFor={`shot-duration-${scene.id}`}>
-                            Duration (seconds)
-                          </label>
-                          <input
-                            id={`shot-duration-${scene.id}`}
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            required
-                            value={shotDurations[scene.id] ?? '5'}
-                            onChange={(event) =>
-                              setShotDurations((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value,
-                              }))
-                            }
-                          />
-
-                          <label htmlFor={`shot-action-${scene.id}`}>
-                            Shot action
-                          </label>
-                          <textarea
-                            id={`shot-action-${scene.id}`}
-                            required
-                            rows={2}
-                            placeholder="What happens in this shot?"
-                            value={shotActions[scene.id] ?? ''}
-                            onChange={(event) =>
-                              setShotActions((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value,
-                              }))
-                            }
-                          />
-
-                          <label htmlFor={`shot-emotion-${scene.id}`}>
-                            Emotion (optional)
-                          </label>
-                          <input
-                            id={`shot-emotion-${scene.id}`}
-                            type="text"
-                            placeholder="e.g. anxious, hopeful"
-                            value={shotEmotions[scene.id] ?? ''}
-                            onChange={(event) =>
-                              setShotEmotions((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value,
-                              }))
-                            }
-                          />
-
-                          <label htmlFor={`shot-camera-${scene.id}`}>
-                            Camera (optional)
-                          </label>
-                          <input
-                            id={`shot-camera-${scene.id}`}
-                            type="text"
-                            placeholder="e.g. close-up, slow dolly-in"
-                            value={shotCameras[scene.id] ?? ''}
-                            onChange={(event) =>
-                              setShotCameras((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value,
-                              }))
-                            }
-                          />
-
-                          <label htmlFor={`shot-lighting-${scene.id}`}>
-                            Lighting (optional)
-                          </label>
-                          <input
-                            id={`shot-lighting-${scene.id}`}
-                            type="text"
-                            placeholder="e.g. warm practical light"
-                            value={shotLighting[scene.id] ?? ''}
-                            onChange={(event) =>
-                              setShotLighting((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value,
-                              }))
-                            }
-                          />
-
-                          <button
-                            type="submit"
-                            className="story-submit"
-                            disabled={
-                              creatingShotId !== null ||
-                              !(shotActions[scene.id] ?? '').trim() ||
-                              !(Number(shotDurations[scene.id] ?? '5') > 0)
-                            }
-                          >
-                            {creatingShotId === scene.id
-                              ? 'Saving shot...'
-                              : 'Save Shot'}
-                          </button>
-
-                          {shotErrors[scene.id] && (
-                            <p className="notice error-notice" role="alert">
-                              {shotErrors[scene.id]}
-                            </p>
-                          )}
-                          {shotSuccesses[scene.id] && (
-                            <p className="notice" role="status">
-                              {shotSuccesses[scene.id]}
-                            </p>
-                          )}
-                        </form>
+                        <ShotCreationForm
+                          sceneId={scene.id}
+                          shotDurations={shotDurations}
+                          shotActions={shotActions}
+                          shotEmotions={shotEmotions}
+                          shotCameras={shotCameras}
+                          shotLighting={shotLighting}
+                          setShotDurations={setShotDurations}
+                          setShotActions={setShotActions}
+                          setShotEmotions={setShotEmotions}
+                          setShotCameras={setShotCameras}
+                          setShotLighting={setShotLighting}
+                          creatingShotId={creatingShotId}
+                          shotErrors={shotErrors}
+                          shotSuccesses={shotSuccesses}
+                          createShot={createShot}
+                        />
 
                         {scene.shots.length === 0 ? (
                           <p className="story-panel-description">
