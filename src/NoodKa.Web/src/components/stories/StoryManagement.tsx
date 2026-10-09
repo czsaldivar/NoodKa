@@ -1,12 +1,10 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Story, StoryDetails } from './storyTypes';
 import StoryCreationForm from './StoryCreationForm';
-import SceneCreationForm from './SceneCreationForm';
 import StoryLibrary from './StoryLibrary';
 import StoryDNA from './StoryDNA';
+import EpisodeCard from './EpisodeCard';
 import type { StoryCreationFormProps } from './storyCreationFormTypes';
-import ShotCreationForm from './ShotCreationForm';
-import ShotCard from './ShotCard';
 
 type StoryManagementProps = {
   data: {
@@ -293,99 +291,45 @@ export default function StoryManagement({
             ) : (
           <div style={{ display: 'grid', gap: '18px' }}>
             {storyDetails.episodes.map((episode) => (
-              <article
+              <EpisodeCard
                 key={episode.id}
-                style={{
-                  padding: '18px',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
+                episode={episode}
+                sceneForm={{
+                  sceneNames,
+                  sceneLocations,
+                  setSceneNames,
+                  setSceneLocations,
+                  creatingSceneId,
+                  sceneErrors,
+                  sceneSuccesses,
+                  createScene,
                 }}
-              >
-                <div className="story-panel-kicker">
-                  EPISODE {episode.number}
-                </div>
-                <h3 style={{ margin: '8px 0 14px', fontWeight: 500 }}>
-                  {episode.title || `Episode ${episode.number}`}
-                </h3>
-
-                <SceneCreationForm
-                  episodeId={episode.id}
-                  sceneName={sceneNames[episode.id] ?? ''}
-                  sceneLocation={sceneLocations[episode.id] ?? ''}
-                  setSceneNames={setSceneNames}
-                  setSceneLocations={setSceneLocations}
-                  creatingSceneId={creatingSceneId}
-                  sceneError={sceneErrors[episode.id]}
-                  sceneSuccess={sceneSuccesses[episode.id]}
-                  createScene={createScene}
-                />
-
-                {episode.scenes.length === 0 ? (
-                  <p className="story-panel-description">
-                    No scenes have been added to this episode yet.
-                  </p>
-                ) : (
-                  <div style={{ display: 'grid', gap: '14px' }}>
-                    {episode.scenes.map((scene) => (
-                      <section
-                        key={scene.id}
-                        style={{
-                          paddingLeft: '14px',
-                          borderLeft: '2px solid var(--amber)',
-                        }}
-                      >
-                        <strong>
-                          Scene {scene.number}: {scene.name}
-                        </strong>
-                        <div className="story-panel-description" style={{ marginTop: '4px' }}>{scene.location}</div>
-
-                        <ShotCreationForm
-                          sceneId={scene.id}
-                          shotDurations={shotDurations}
-                          shotActions={shotActions}
-                          shotEmotions={shotEmotions}
-                          shotCameras={shotCameras}
-                          shotLighting={shotLighting}
-                          setShotDurations={setShotDurations}
-                          setShotActions={setShotActions}
-                          setShotEmotions={setShotEmotions}
-                          setShotCameras={setShotCameras}
-                          setShotLighting={setShotLighting}
-                          creatingShotId={creatingShotId}
-                          shotErrors={shotErrors}
-                          shotSuccesses={shotSuccesses}
-                          createShot={createShot}
-                        />
-
-                        {scene.shots.length === 0 ? (
-                          <p className="story-panel-description">
-                            No shots in this scene yet.
-                          </p>
-                        ) : (
-                          <ol style={{
-                            paddingLeft: '20px',
-                            lineHeight: 1.8,
-                          }}>
-                            {scene.shots.map((shot) => (
-                              <ShotCard
-                                key={shot.id}
-                                shot={shot}
-                                highlighted={highlightedShotId === shot.id}
-                                generatingImageShotId={generatingImageShotId}
-                                shotImages={shotImages}
-                                imageErrors={imageErrors}
-                                imagePrompts={imagePrompts}
-                                generateShotImage={generateShotImage}
-                                goToShotAsset={goToShotAsset}
-                              />
-                            ))}
-                          </ol>
-                        )}
-                      </section>
-                    ))}
-                  </div>
-                )}
-              </article>
+                shotForm={{
+                  shotDurations,
+                  shotActions,
+                  shotEmotions,
+                  shotCameras,
+                  shotLighting,
+                  setShotDurations,
+                  setShotActions,
+                  setShotEmotions,
+                  setShotCameras,
+                  setShotLighting,
+                  creatingShotId,
+                  shotErrors,
+                  shotSuccesses,
+                  createShot,
+                }}
+                shotCard={{
+                  highlightedShotId,
+                  generatingImageShotId,
+                  shotImages,
+                  imageErrors,
+                  imagePrompts,
+                  generateShotImage,
+                  goToShotAsset,
+                }}
+              />
             ))}
           </div>
         )}
