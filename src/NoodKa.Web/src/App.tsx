@@ -127,6 +127,9 @@ function App() {
   const [charactersLoading, setCharactersLoading] = useState(false)
   const selectedCharacter = characters.find((character) => character.id === selectedCharacterId) ?? null
   const [charactersError, setCharactersError] = useState('')
+  const [characterReferenceFile, setCharacterReferenceFile] = useState<File | null>(null)
+  const [uploadingCharacterReference, setUploadingCharacterReference] = useState(false)
+  const [characterReferenceMessage, setCharacterReferenceMessage] = useState('')
   const [creatingCharacter, setCreatingCharacter] = useState(false)
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null)
   const [characterForm, setCharacterForm] = useState<CharacterForm>({
@@ -185,7 +188,7 @@ function App() {
   const [shotImages, setShotImages] = useState<Record<string, string>>({})
   const [imageErrors, setImageErrors] = useState<Record<string, string>>({})
   const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({})
-  const [shotCharacterIds, setShotCharacterIds] = useState<Record<string, string>>({})
+  const [shotCharacterIds, setShotCharacterIds] = useState<Record<string, string[]>>({})
   const charactersForShotGeneration = characters
     .filter((character) =>
       character.references.some((reference) =>
@@ -382,6 +385,24 @@ function App() {
     void loadStoryDetails()
     return () => controller.abort()
   }, [selectedStoryId])
+
+  useEffect(() => {
+    if (!storyDetails) return
+
+    setShotCharacterIds((current) => {
+      const restored = { ...current }
+      for (const episode of storyDetails.episodes) {
+        for (const scene of episode.scenes) {
+          for (const shot of scene.shots) {
+            restored[shot.id] = Array.isArray(shot.characterIds)
+              ? shot.characterIds
+              : []
+          }
+        }
+      }
+      return restored
+    })
+  }, [storyDetails])
 
   useEffect(() => {
     if (!pendingShotNavigation) return
@@ -746,13 +767,31 @@ function App() {
     }
   }
 
-  function selectShotCharacter(shotId: string, characterId: string) {
-    setShotCharacterIds((current) => {
-      const updated = { ...current }
-      if (characterId) updated[shotId] = characterId
-      else delete updated[shotId]
-      return updated
-    })
+  async function selectShotCharacter(shotId: string, characterIds: string[]) {
+    const previousIds = shotCharacterIds[shotId] ?? []
+    setShotCharacterIds((current) => ({ ...current, [shotId]: characterIds }))
+    setImageErrors((current) => ({ ...current, [shotId]: "" }))
+
+    try {
+      const response = await fetch(`/api/shots/${shotId}/characters`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterIds }),
+      })
+      const payload = await response.json().catch(() => ({})) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Could not save character selection (HTTP ${response.status}).`)
+      }
+    } catch (cause) {
+      setShotCharacterIds((current) => ({ ...current, [shotId]: previousIds }))
+      setImageErrors((current) => ({
+        ...current,
+        [shotId]: `Could not save character selection: ${
+          cause instanceof Error ? cause.message : "Unexpected error."
+        }`,
+      }))
+    }
   }
 
   async function generateShotImage(shotId: string) {
@@ -760,16 +799,27 @@ function App() {
     setGeneratingImageShotId(shotId)
     setImageErrors((current) => ({ ...current, [shotId]: "" }))
     try {
-      const selectedCharacterId = shotCharacterIds[shotId]
-      const characterQuery = selectedCharacterId
-        ? `?characterId=${encodeURIComponent(selectedCharacterId)}`
-        : ''
       const response = await fetch(
-        `/api/shots/${shotId}/generate-image${characterQuery}`,
+        `/api/shots/${shotId}/generate-image`,
         { method: "POST" },
       )
-      const payload: { error?: string; imageUrl?: string; prompt?: string } = await response.json()
-      if (!response.ok) throw new Error(payload.error ?? `Image generation failed (HTTP ${response.status}).`)
+      const responseText = await response.text()
+      let payload: { error?: string; imageUrl?: string; prompt?: string }
+
+      try {
+        payload = responseText
+          ? JSON.parse(responseText) as { error?: string; imageUrl?: string; prompt?: string }
+          : {}
+      } catch {
+        if (!response.ok) {
+          throw new Error(`Image generation failed (HTTP ${response.status}). The server returned an unexpected response.`)
+        }
+        throw new Error("The API returned an invalid image-generation response.")
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Image generation failed (HTTP ${response.status}).`)
+      }
       if (!payload.imageUrl) throw new Error("The API did not return an image URL.")
       setShotImages((current) => ({ ...current, [shotId]: payload.imageUrl! }))
       setImagePrompts((current) => ({ ...current, [shotId]: payload.prompt ?? "" }))
@@ -948,7 +998,6 @@ function App() {
 
   // NOODKA_CHARACTER_MANAGEMENT_V1
   useEffect(() => {
-    if (activeView !== 'characters') return
 
     const controller = new AbortController()
 
@@ -995,6 +1044,57 @@ function App() {
     return () => controller.abort()
   }, [activeView])
 
+  async function handleUploadCharacterFaceReference() {
+    if (!selectedCharacter || !characterReferenceFile || uploadingCharacterReference) return
+
+    const formData = new FormData()
+    formData.append('file', characterReferenceFile)
+
+    try {
+      setUploadingCharacterReference(true)
+      setCharacterReferenceMessage('Uploading Face reference...')
+
+      const response = await fetch(
+        `/api/characters/${selectedCharacter.id}/references/face`,
+        { method: 'POST', body: formData },
+      )
+      const payload: { error?: string } = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Upload failed (HTTP ${response.status}).`)
+      }
+
+      const refreshResponse = await fetch('/api/characters')
+      if (!refreshResponse.ok) {
+        throw new Error('Upload succeeded, but refreshing the character list failed. Reopen Character Library to verify it.')
+      }
+
+      const refreshPayload: unknown = await refreshResponse.json()
+      const rows = Array.isArray(refreshPayload)
+        ? refreshPayload
+        : refreshPayload && typeof refreshPayload === 'object' && 'value' in refreshPayload
+          ? (refreshPayload as { value: unknown }).value
+          : []
+
+      const validCharacters: Character[] = Array.isArray(rows)
+        ? rows.filter((item: unknown): item is Character => {
+            if (!item || typeof item !== 'object') return false
+            const candidate = item as Partial<Character>
+            return typeof candidate.id === 'string' && typeof candidate.name === 'string'
+          })
+        : []
+
+      setCharacters(validCharacters)
+      setCharacterReferenceFile(null)
+      setCharacterReferenceMessage(`Face reference uploaded successfully for ${selectedCharacter.name}.`)
+    } catch (cause) {
+      setCharacterReferenceMessage(
+        cause instanceof Error ? cause.message : 'Unable to upload the Face reference.',
+      )
+    } finally {
+      setUploadingCharacterReference(false)
+    }
+  }
   function resetCharacterForm() {
     setCharacterForm({
       name: '',
@@ -1781,6 +1881,30 @@ function App() {
                   <div className="character-profile-reference-heading">
                     <h3>Reference Images</h3>
                     <span>{selectedCharacter.references?.length ?? 0}</span>
+                  </div>
+                  <div className="character-reference-upload">
+                    <label>
+                      <span>Upload Face reference (PNG or JPEG, max 5 MB)</span>
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                        disabled={uploadingCharacterReference}
+                        onChange={(event) => {
+                          setCharacterReferenceFile(event.currentTarget.files?.[0] ?? null)
+                          setCharacterReferenceMessage('')
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="story-submit"
+                      disabled={!characterReferenceFile || uploadingCharacterReference}
+                      onClick={() => void handleUploadCharacterFaceReference()}
+                    >
+                      {uploadingCharacterReference ? 'Uploading...' : 'Upload Face Reference'}
+                    </button>
+                    {characterReferenceFile && <p>Selected: {characterReferenceFile.name}</p>}
+                    {characterReferenceMessage && <p role="status">{characterReferenceMessage}</p>}
                   </div>
                   {selectedCharacter.references?.length ? (
                     <ul className="character-profile-reference-list">

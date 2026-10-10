@@ -1083,3 +1083,43 @@
   padding: 8px;
   transition: background 180ms ease;
 }
+
+.story-count > span {
+  margin-left: 0.4em;
+}
+
+/* Multi-character shot selection */
+.shot-character-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border, #d8d5cf);
+  border-radius: 10px;
+}
+.shot-character-picker legend {
+  padding: 0 5px;
+  font-weight: 600;
+}
+.shot-character-help {
+  margin: 6px 0;
+  font-size: 0.88rem;
+  opacity: 0.8;
+}
+.shot-character-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.shot-character-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.shot-character-option input {
+  width: auto;
+  margin: 0;
+}
+.shot-character-picker:disabled {
+  opacity: 0.7;
+}

@@ -56,15 +56,8 @@ public sealed class OpenAIImageGenerator : IImageGenerator
 
             byte[]? generatedBytes;
 
-            if (request.ReferenceImageBytes is not null)
+            if (request.ReferenceImages.Count > 0)
             {
-                if (string.IsNullOrWhiteSpace(
-                    request.ReferenceImageFileName))
-                {
-                    return ImageGenerationResult.Failure(
-                        "A filename is required when a reference image is provided.");
-                }
-
                 generatedBytes = await GenerateFromReferenceAsync(
                     request,
                     cancellationToken);
@@ -121,24 +114,11 @@ public sealed class OpenAIImageGenerator : IImageGenerator
         ImageGenerationRequest request,
         CancellationToken cancellationToken)
     {
-        var fileName = Path.GetFileName(
-            request.ReferenceImageFileName);
-
-        if (string.IsNullOrWhiteSpace(fileName))
+        if (request.ReferenceImages.Count == 0)
         {
             throw new InvalidOperationException(
-                "The reference image filename is invalid.");
+                "At least one reference image is required for image editing.");
         }
-
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-
-        var contentType = extension switch
-        {
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
-            _ => throw new InvalidOperationException(
-                "The reference image must be PNG or JPEG.")
-        };
 
         using var form = new MultipartFormDataContent();
 
@@ -147,13 +127,35 @@ public sealed class OpenAIImageGenerator : IImageGenerator
         form.Add(new StringContent("1024x1024"), "size");
         form.Add(new StringContent("png"), "output_format");
 
-        var imageContent = new ByteArrayContent(
-            request.ReferenceImageBytes!);
+        foreach (var reference in request.ReferenceImages)
+        {
+            var fileName = Path.GetFileName(reference.FileName);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                throw new InvalidOperationException(
+                    "A reference image filename is invalid.");
+            }
 
-        imageContent.Headers.ContentType =
-            new MediaTypeHeaderValue(contentType);
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            var contentType = extension switch
+            {
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                _ => throw new InvalidOperationException(
+                    "Every reference image must be PNG or JPEG.")
+            };
 
-        form.Add(imageContent, "image[]", fileName);
+            if (reference.Bytes.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "A reference image cannot be empty.");
+            }
+
+            var imageContent = new ByteArrayContent(reference.Bytes);
+            imageContent.Headers.ContentType =
+                new MediaTypeHeaderValue(contentType);
+            form.Add(imageContent, "image[]", fileName);
+        }
 
         using var message = new HttpRequestMessage(
             HttpMethod.Post,

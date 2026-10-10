@@ -437,6 +437,58 @@ public sealed class SqliteStoryRepositoryTests
     }
 
     [Fact]
+    public async Task SetShotCharacterIds_PersistsMultipleCharacterIds()
+    {
+        var directory = CreateTestDirectory();
+        var databasePath = Path.Combine(directory, "stories.db");
+
+        try
+        {
+            var repository = new SqliteStoryRepository(databasePath);
+            var story = new Story("Multi-character test", "Persistence test.");
+            await repository.AddAsync(story);
+
+            var episode = await repository.CreateEpisodeAsync(story.Id, "Episode 1");
+            Assert.NotNull(episode);
+
+            var scene = await repository.CreateSceneAsync(
+                episode.Id, "Family Room", "INT. FAMILY ROOM - EVENING");
+            Assert.NotNull(scene);
+
+            var shot = await repository.CreateShotAsync(
+                scene.Id,
+                TimeSpan.FromSeconds(5),
+                "The family gathers for prayer.",
+                "Warm and peaceful",
+                "Medium shot",
+                "Soft evening light");
+            Assert.NotNull(shot);
+
+            var firstCharacterId = Guid.NewGuid();
+            var secondCharacterId = Guid.NewGuid();
+
+            var saved = await repository.SetShotCharacterIdsAsync(
+                shot.Id,
+                new[] { firstCharacterId, secondCharacterId });
+
+            Assert.True(saved);
+
+            var reloaded = await new SqliteStoryRepository(databasePath).GetAllAsync();
+            var reloadedShot = Assert.Single(
+                Assert.Single(Assert.Single(Assert.Single(reloaded).Episodes).Scenes).Shots);
+
+            Assert.Equal(
+                new[] { firstCharacterId, secondCharacterId },
+                reloadedShot.CharacterIds);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+    [Fact]
     public async Task CreateShotAsync_MissingScene_ReturnsNull()
     {
         var directory = CreateTestDirectory();

@@ -1,4 +1,4 @@
-﻿export type Story = {
+export type Story = {
   id: string
   title: string
   description: string
@@ -19,6 +19,7 @@ export type StoryShot = {
   emotion: string
   camera: string
   lighting: string
+  characterIds: string[]
 }
 
 export type StoryScene = {

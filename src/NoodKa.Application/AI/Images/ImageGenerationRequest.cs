@@ -1,4 +1,24 @@
-﻿namespace NoodKa.Application.AI.Images;
+namespace NoodKa.Application.AI.Images;
+
+public sealed class ImageReferenceInput
+{
+    public string? Location { get; }
+    public byte[] Bytes { get; }
+    public string FileName { get; }
+
+    public ImageReferenceInput(string? location, byte[] bytes, string fileName)
+    {
+        if (bytes is null || bytes.Length == 0)
+            throw new ArgumentException("Reference image bytes cannot be empty.", nameof(bytes));
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("Reference image filename is required.", nameof(fileName));
+
+        Location = location;
+        Bytes = bytes;
+        FileName = fileName;
+    }
+}
 
 public sealed class ImageGenerationRequest
 {
@@ -10,6 +30,8 @@ public sealed class ImageGenerationRequest
 
     public string? ReferenceImageFileName { get; }
 
+    public IReadOnlyList<ImageReferenceInput> ReferenceImages { get; }
+
     public int Width { get; }
 
     public int Height { get; }
@@ -20,7 +42,8 @@ public sealed class ImageGenerationRequest
         int width = 1024,
         int height = 1024,
         byte[]? referenceImageBytes = null,
-        string? referenceImageFileName = null)
+        string? referenceImageFileName = null,
+        IReadOnlyList<ImageReferenceInput>? referenceImages = null)
     {
         if (string.IsNullOrWhiteSpace(prompt))
             throw new ArgumentException(
@@ -47,6 +70,25 @@ public sealed class ImageGenerationRequest
         ReferenceImageLocation = referenceImageLocation;
         ReferenceImageBytes = referenceImageBytes;
         ReferenceImageFileName = referenceImageFileName;
+
+        if (referenceImages is not null && referenceImageBytes is not null)
+            throw new ArgumentException("Use either referenceImages or the legacy single-image arguments, not both.");
+
+        ReferenceImages = referenceImages is not null
+            ? referenceImages.ToArray()
+            : referenceImageBytes is not null
+                ? new[]
+                {
+                    new ImageReferenceInput(
+                        referenceImageLocation,
+                        referenceImageBytes,
+                        referenceImageFileName!)
+                }
+                : Array.Empty<ImageReferenceInput>();
+
+        if (ReferenceImages.Any(image => image is null))
+            throw new ArgumentException("Reference image collection cannot contain null entries.", nameof(referenceImages));
+
         Width = width;
         Height = height;
     }

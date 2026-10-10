@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using NoodKa.Application.AI.Images;
@@ -73,6 +73,49 @@ public sealed class OpenAIImageGeneratorTests
         Assert.Equal(1, handler.RequestCount);
     }
 
+    [Fact]
+    public async Task GenerateAsync_WithMultipleReferenceImages_SendsEveryImageInOrder()
+    {
+        var generatedBytes = "generated-image-bytes"u8.ToArray();
+        var handler = new StubHttpMessageHandler(async request =>
+        {
+            var multipart = Assert.IsType<MultipartFormDataContent>(request.Content);
+            var imageParts = multipart.Where(part =>
+                part.Headers.ContentDisposition?.Name?.Trim('"') == "image[]").ToArray();
+
+            Assert.Equal(2, imageParts.Length);
+            Assert.Equal("tinn.png", imageParts[0].Headers.ContentDisposition!.FileName!.Trim('"'));
+            Assert.Equal("image/png", imageParts[0].Headers.ContentType!.MediaType);
+            Assert.Equal("tinn-face"u8.ToArray(), await imageParts[0].ReadAsByteArrayAsync());
+
+            Assert.Equal("joann.jpg", imageParts[1].Headers.ContentDisposition!.FileName!.Trim('"'));
+            Assert.Equal("image/jpeg", imageParts[1].Headers.ContentType!.MediaType);
+            Assert.Equal("joann-face"u8.ToArray(), await imageParts[1].ReadAsByteArrayAsync());
+
+            var responseJson = "{\"data\":[{\"b64_json\":\"" +
+                Convert.ToBase64String(generatedBytes) + "\"}]}";
+            return JsonResponse(HttpStatusCode.OK, responseJson);
+        });
+
+        var storage = new FakeAssetStorage();
+        using var httpClient = new HttpClient(handler);
+        var generator = CreateGenerator(storage, httpClient);
+
+        var request = new ImageGenerationRequest(
+            "family scene",
+            referenceImages: new[]
+            {
+                new ImageReferenceInput("characters/tinn/face.png", "tinn-face"u8.ToArray(), "tinn.png"),
+                new ImageReferenceInput("characters/joann/face.jpg", "joann-face"u8.ToArray(), "joann.jpg")
+            });
+
+        var result = await generator.GenerateAsync(request);
+
+        Assert.True(result.Succeeded, result.ErrorMessage);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Single(storage.SavedContent);
+        Assert.Equal(generatedBytes, storage.SavedContent[result.StorageKey!]);
+    }
     [Fact]
     public async Task GenerateAsync_WhenApiReturnsError_ReturnsFailure()
     {
@@ -242,3 +285,4 @@ public sealed class OpenAIImageGeneratorTests
         }
     }
 }
+

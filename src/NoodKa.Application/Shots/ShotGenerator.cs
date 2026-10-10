@@ -36,7 +36,11 @@ public sealed class ShotGenerator : IShotGenerator
             promptResult.Prompt,
             request.ReferenceImageLocation,
             referenceImageBytes: request.ReferenceImageBytes,
-            referenceImageFileName: request.ReferenceImageFileName);
+            referenceImageFileName: request.ReferenceImageFileName,
+            referenceImages: request.ReferenceImages.Count > 0 &&
+                request.ReferenceImageBytes is null
+                    ? request.ReferenceImages
+                    : null);
 
         var imageResult = await _imageGenerator.GenerateAsync(
             imageRequest,

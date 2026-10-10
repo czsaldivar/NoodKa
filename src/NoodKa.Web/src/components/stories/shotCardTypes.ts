@@ -1,4 +1,4 @@
-import type { StoryShot } from './storyTypes';
+﻿import type { StoryShot } from './storyTypes';
 
 export type ShotCardProps = {
   shot: StoryShot;
@@ -8,8 +8,9 @@ export type ShotCardProps = {
   imageErrors: Record<string, string>;
   imagePrompts: Record<string, string>;
   charactersForShotGeneration: Array<{ id: string; name: string }>;
-  shotCharacterIds: Record<string, string>;
-  selectShotCharacter: (shotId: string, characterId: string) => void;
+  shotCharacterIds: Record<string, string[]>;
+  selectShotCharacter: (shotId: string, characterIds: string[]) => void;
   generateShotImage: (shotId: string) => Promise<void>;
   goToShotAsset: (shotId: string) => void;
 };
+

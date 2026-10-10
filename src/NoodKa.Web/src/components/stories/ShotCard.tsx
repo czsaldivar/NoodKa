@@ -1,4 +1,4 @@
-import type { ShotCardProps } from './shotCardTypes';
+﻿import type { ShotCardProps } from './shotCardTypes';
 
 export default function ShotCard({
   shot,
@@ -39,31 +39,40 @@ export default function ShotCard({
           marginTop: '10px',
         }}
       >
-        <label
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '8px',
-            alignItems: 'center',
-          }}
-        >
-          <span>Character reference</span>
-          <select
-            aria-label={`Character reference for shot ${shot.sequence}`}
-            value={shotCharacterIds[shot.id] ?? ''}
-            onChange={(event) =>
-              selectShotCharacter(shot.id, event.target.value)
-            }
-            disabled={generatingImageShotId !== null}
-          >
-            <option value="">No character (text-only)</option>
-            {charactersForShotGeneration.map((character) => (
-              <option key={character.id} value={character.id}>
-                {character.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <fieldset className="shot-character-picker" disabled={generatingImageShotId !== null}>
+          <legend>Characters in this shot</legend>
+          <p className="shot-character-help">
+            Select every character who appears in this scene. Leave all unchecked for text-only generation.
+          </p>
+          {charactersForShotGeneration.length === 0 ? (
+            <p className="shot-character-help">Upload a face reference for a character to make them available here.</p>
+          ) : (
+            <div className="shot-character-options">
+              {charactersForShotGeneration.map((character) => {
+                const selectedIds = shotCharacterIds[shot.id] ?? []
+                const checked = selectedIds.includes(character.id)
+                return (
+                  <label className="shot-character-option" key={character.id}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        const nextIds = event.target.checked
+                          ? [...selectedIds, character.id]
+                          : selectedIds.filter((id) => id !== character.id)
+                        selectShotCharacter(shot.id, nextIds)
+                      }}
+                    />
+                    <span>{character.name}</span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
+          <p className="shot-character-help">
+            Selected: {(shotCharacterIds[shot.id] ?? []).length}
+          </p>
+        </fieldset>
 
         <button
           type="button"
@@ -133,3 +142,4 @@ export default function ShotCard({
     </li>
   );
 }
+

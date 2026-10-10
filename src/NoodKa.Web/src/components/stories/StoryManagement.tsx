@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
+﻿import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Story, StoryDetails } from './storyTypes';
 import StoryCreationForm from './StoryCreationForm';
 import StoryLibrary from './StoryLibrary';
@@ -31,7 +31,7 @@ type StoryManagementProps = {
     imageErrors: Record<string, string>;
     imagePrompts: Record<string, string>;
     charactersForShotGeneration: Array<{ id: string; name: string }>;
-    shotCharacterIds: Record<string, string>;
+    shotCharacterIds: Record<string, string[]>;
   };
 
   forms: {
@@ -77,7 +77,7 @@ type StoryManagementProps = {
       sceneId: string,
     ) => Promise<void>;
     generateShotImage: (shotId: string) => Promise<void>;
-    selectShotCharacter: (shotId: string, characterId: string) => void;
+    selectShotCharacter: (shotId: string, characterIds: string[]) => void;
     goToShotAsset: (shotId: string) => void;
     selectStory: (storyId: string) => void;
   };
@@ -348,3 +348,4 @@ export default function StoryManagement({
   </section>
   );
 }
+

@@ -95,7 +95,7 @@ if (string.IsNullOrWhiteSpace(characterReferenceRootPath))
 builder.Services.AddSingleton<ICharacterReferenceStorage>(
     _ => new LocalCharacterReferenceStorage(characterReferenceRootPath));
 // AI image generation
-builder.Services.AddHttpClient<OpenAIImageGenerator>();
+builder.Services.AddHttpClient<OpenAIImageGenerator>(client => { client.Timeout = TimeSpan.FromMinutes(4); });
 builder.Services.AddScoped<IImageGenerator>(
     services => services.GetRequiredService<OpenAIImageGenerator>());
 
@@ -306,7 +306,8 @@ app.MapGet("/api/stories/{storyId:guid}", async (
                     shot.Action,
                     shot.Emotion,
                     shot.Camera,
-                    shot.Lighting
+                    shot.Lighting,
+                    CharacterIds = shot.CharacterIds
                 })
             })
         })
@@ -314,6 +315,59 @@ app.MapGet("/api/stories/{storyId:guid}", async (
 })
 .WithName("GetStoryDetails");
 
+app.MapPut("/api/shots/{shotId:guid}/characters", async (
+    Guid shotId,
+    SetShotCharactersRequest body,
+    IStoryRepository storyRepository,
+    ICharacterRepository characterRepository,
+    CancellationToken cancellationToken) =>
+{
+    var characterIds = body.CharacterIds ?? Array.Empty<Guid>();
+
+
+    if (characterIds.Any(id => id == Guid.Empty))
+        return Results.BadRequest(new { error = "Character IDs cannot contain an empty ID." });
+
+    if (characterIds.Distinct().Count() != characterIds.Length)
+        return Results.BadRequest(new { error = "Duplicate character IDs are not allowed." });
+
+    var stories = await storyRepository.GetAllAsync(cancellationToken);
+    var shotExists = stories
+        .SelectMany(story => story.Episodes)
+        .SelectMany(episode => episode.Scenes)
+        .SelectMany(scene => scene.Shots)
+        .Any(shot => shot.Id == shotId);
+
+    if (!shotExists)
+        return Results.NotFound(new { error = "Shot not found." });
+
+    foreach (var characterId in characterIds)
+    {
+        var character = await characterRepository.GetByIdAsync(
+            characterId, cancellationToken);
+
+        if (character is null)
+            return Results.BadRequest(new { error = $"Character {characterId} was not found." });
+
+        var hasFaceReference = character.References.Any(reference =>
+            string.Equals(reference.Type.ToString(), "Face", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasFaceReference)
+            return Results.BadRequest(new
+            {
+                error = $"Character '{character.Name}' does not have a face reference."
+            });
+    }
+
+    var saved = await storyRepository.SetShotCharacterIdsAsync(
+        shotId, characterIds, cancellationToken);
+
+    if (!saved)
+        return Results.NotFound(new { error = "Shot not found." });
+
+    return Results.Ok(new { shotId, characterIds });
+})
+.WithName("SetShotCharacters");
 app.MapPost("/api/stories/{storyId:guid}/episodes", async (
     Guid storyId,
     CreateEpisodeRequest body,
@@ -514,26 +568,30 @@ app.MapPost("/api/shots/{shotId:guid}/generate-image", async (
     if (match is null)
         return Results.NotFound(new { error = "Shot not found." });
 
-    string? referenceImageLocation = null;
-    byte[]? referenceImageBytes = null;
-    string? referenceImageFileName = null;
-    string? selectedCharacterName = null;
-    string? selectedCharacterVisualDescription = null;
+    // Saved selections are authoritative. Keep the old query parameter working
+    // for older clients that have not saved character selections on the shot.
+    var selectedCharacterIds = match.Shot.CharacterIds.ToArray();
+    if (selectedCharacterIds.Length == 0 && characterId.HasValue)
+        selectedCharacterIds = new[] { characterId.Value };
 
-    if (characterId.HasValue)
+    var referenceImages = new List<ImageReferenceInput>();
+    var selectedCharacterNames = new List<string>();
+    var visualDescriptions = new List<string>();
+
+    foreach (var selectedCharacterId in selectedCharacterIds)
     {
         var character = await characterRepository.GetByIdAsync(
-            characterId.Value,
+            selectedCharacterId,
             cancellationToken);
 
         if (character is null)
-            return Results.NotFound(new { error = "Selected character not found." });
+            return Results.NotFound(new { error = $"Selected character '{selectedCharacterId}' was not found." });
 
-        selectedCharacterName = character.Name;
+        selectedCharacterNames.Add(character.Name);
 
         if (character.VisualProfile is { } visualProfile)
         {
-            selectedCharacterVisualDescription = string.Join(
+            var description = string.Join(
                 "; ",
                 new[]
                 {
@@ -542,106 +600,114 @@ app.MapPost("/api/shots/{shotId:guid}/generate-image", async (
                     string.IsNullOrWhiteSpace(visualProfile.TypicalClothing) ? null : $"Typical clothing: {visualProfile.TypicalClothing}",
                     string.IsNullOrWhiteSpace(visualProfile.VisualStyle) ? null : $"Visual style: {visualProfile.VisualStyle}"
                 }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            if (!string.IsNullOrWhiteSpace(description))
+                visualDescriptions.Add($"{character.Name}: {description}");
         }
 
         var faceReference = character.References.FirstOrDefault(
-            reference => reference.Type == NoodKa.Domain.Characters.CharacterReferenceType.Face);
+            reference => reference.Type == CharacterReferenceType.Face);
 
         if (faceReference is null)
         {
             return Results.BadRequest(new
             {
-                error = "The selected character has no Face reference image. Upload one before generating this shot."
+                error = $"Character '{character.Name}' has no Face reference image. Upload one before generating this shot."
             });
         }
 
-        referenceImageFileName = Path.GetFileName(faceReference.StorageLocation);
-        referenceImageLocation = faceReference.StorageLocation;
-
-        if (string.IsNullOrWhiteSpace(referenceImageFileName))
+        var fileName = Path.GetFileName(faceReference.StorageLocation);
+        if (string.IsNullOrWhiteSpace(fileName))
         {
             return Results.BadRequest(new
             {
-                error = "The selected character's Face reference has an invalid filename."
+                error = $"Character '{character.Name}' has an invalid Face reference filename."
             });
         }
 
-        var extension = Path.GetExtension(referenceImageFileName);
+        var extension = Path.GetExtension(fileName);
+        var isPngExtension = string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase);
+        var isJpegExtension =
+            string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase);
 
-        if (!string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase))
+        if (!isPngExtension && !isJpegExtension)
         {
             return Results.BadRequest(new
             {
-                error = "The selected character's Face reference must be a PNG or JPEG image."
+                error = $"Character '{character.Name}' has a Face reference that is not a PNG or JPEG image."
             });
         }
 
         var referenceStream = await characterReferenceStorage.OpenReadAsync(
             character.Id,
-            referenceImageFileName,
+            fileName,
             cancellationToken);
 
         if (referenceStream is null)
         {
             return Results.NotFound(new
             {
-                error = "The selected character's Face reference image could not be found in storage."
+                error = $"Character '{character.Name}' has a Face reference image that could not be found in storage."
             });
         }
 
+        byte[] imageBytes;
         await using (referenceStream)
         await using (var buffer = new MemoryStream())
         {
             await referenceStream.CopyToAsync(buffer, cancellationToken);
-            referenceImageBytes = buffer.ToArray();
+            imageBytes = buffer.ToArray();
         }
 
-        if (referenceImageBytes.Length == 0)
+        if (imageBytes.Length == 0)
         {
             return Results.BadRequest(new
             {
-                error = "The selected character's Face reference image is empty."
+                error = $"Character '{character.Name}' has an empty Face reference image."
             });
         }
 
-        if (referenceImageBytes.Length > MaxCharacterReferenceBytes)
+        if (imageBytes.Length > MaxCharacterReferenceBytes)
         {
             return Results.BadRequest(new
             {
-                error = "The selected character's Face reference image must not exceed 5 MB."
+                error = $"Character '{character.Name}' has a Face reference image larger than 5 MB."
             });
         }
 
-        var isPng = referenceImageBytes.AsSpan().StartsWith(
+        var isPng = imageBytes.AsSpan().StartsWith(
             new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
 
-        var isJpeg = referenceImageBytes.Length >= 3 &&
-            referenceImageBytes[0] == 0xFF &&
-            referenceImageBytes[1] == 0xD8 &&
-            referenceImageBytes[2] == 0xFF;
+        var isJpeg = imageBytes.Length >= 3 &&
+            imageBytes[0] == 0xFF &&
+            imageBytes[1] == 0xD8 &&
+            imageBytes[2] == 0xFF;
 
         if (!isPng && !isJpeg)
         {
             return Results.BadRequest(new
             {
-                error = "The stored Face reference is not a valid PNG or JPEG image."
+                error = $"Character '{character.Name}' has a Face reference that is not a valid PNG or JPEG image."
             });
         }
 
         var extensionMatchesContent =
-            (string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase) && isPng) ||
-            ((string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) ||
-              string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)) && isJpeg);
+            (isPngExtension && isPng) ||
+            (isJpegExtension && isJpeg);
 
         if (!extensionMatchesContent)
         {
             return Results.BadRequest(new
             {
-                error = "The stored Face reference file extension does not match its image format."
+                error = $"Character '{character.Name}' has a Face reference filename that does not match its image format."
             });
         }
+
+        referenceImages.Add(new ImageReferenceInput(
+            faceReference.StorageLocation,
+            imageBytes,
+            fileName));
     }
 
     var promptRequest = new CinematicPromptRequest(
@@ -651,19 +717,31 @@ app.MapPost("/api/shots/{shotId:guid}/generate-image", async (
         camera: match.Shot.Camera,
         lighting: match.Shot.Lighting,
         visualStyle: "Photorealistic cinematic film still",
-        characters: selectedCharacterName is null
+        characters: selectedCharacterNames.Count == 0 ? null : selectedCharacterNames,
+        characterVisualDescription: visualDescriptions.Count == 0
             ? null
-            : new[] { selectedCharacterName },
-        characterVisualDescription: selectedCharacterVisualDescription);
+            : string.Join("\n", visualDescriptions));
 
-    var result = await shotGenerator.GenerateAsync(
-        new ShotGenerationRequest(
-            match.Shot.Id,
-            promptRequest,
-            referenceImageLocation: referenceImageLocation,
-            referenceImageBytes: referenceImageBytes,
-            referenceImageFileName: referenceImageFileName),
-        cancellationToken);
+    NoodKa.Application.Shots.ShotGenerationResult result;
+
+    try
+    {
+        result = await shotGenerator.GenerateAsync(
+            new ShotGenerationRequest(
+                match.Shot.Id,
+                promptRequest,
+                referenceImages: referenceImages),
+            cancellationToken);
+    }
+    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return Results.Json(
+            new
+            {
+                error = "Image generation timed out. Please wait before trying again."
+            },
+            statusCode: StatusCodes.Status504GatewayTimeout);
+    }
 
     if (!result.Succeeded)
     {
@@ -680,6 +758,7 @@ app.MapPost("/api/shots/{shotId:guid}/generate-image", async (
     {
         shotId = match.Shot.Id,
         characterId,
+        characterIds = selectedCharacterIds,
         prompt = result.Prompt,
         imageId = result.ImageResult.Id,
         imageUrl = $"/api/assets/{result.ImageResult.Id}"
@@ -1113,6 +1192,7 @@ public sealed record ShotTestRequest(
     string? VisualStyle = null,
     string[]? Characters = null);
 
+public sealed record SetShotCharactersRequest(Guid[]? CharacterIds);
 public sealed record CreateEpisodeRequest(string? Title);
 public sealed record CreateShotRequest(double DurationSeconds, string? Action, string? Emotion = null, string? Camera = null, string? Lighting = null);
 record CreateSceneRequest(string? Name, string? Location);

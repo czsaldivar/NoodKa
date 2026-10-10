@@ -22,6 +22,10 @@ public interface IStoryRepository
         string lighting,
         CancellationToken cancellationToken = default);
 
+    Task<bool> SetShotCharacterIdsAsync(
+        Guid shotId,
+        IReadOnlyList<Guid> characterIds,
+        CancellationToken cancellationToken = default);
     Task<Scene?> CreateSceneAsync(
         Guid episodeId,
         string name,

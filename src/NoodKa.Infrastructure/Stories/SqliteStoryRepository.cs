@@ -312,6 +312,67 @@ public sealed class SqliteStoryRepository : IStoryRepository
 
         return shot;
     }
+    public async Task<bool> SetShotCharacterIdsAsync(
+        Guid shotId,
+        IReadOnlyList<Guid> characterIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (shotId == Guid.Empty)
+            throw new ArgumentException("Shot ID is required.", nameof(shotId));
+
+        ArgumentNullException.ThrowIfNull(characterIds);
+
+        if (characterIds.Any(id => id == Guid.Empty))
+            throw new ArgumentException("Character IDs cannot contain an empty ID.", nameof(characterIds));
+
+        if (characterIds.Distinct().Count() != characterIds.Count)
+            throw new ArgumentException("Character IDs cannot contain duplicates.", nameof(characterIds));
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await EnsureSchemaAsync(connection, cancellationToken);
+
+        using var transaction = connection.BeginTransaction(deferred: false);
+
+        await using (var check = connection.CreateCommand())
+        {
+            check.Transaction = transaction;
+            check.CommandText = "SELECT 1 FROM Shots WHERE Id = $id LIMIT 1;";
+            check.Parameters.AddWithValue("$id", shotId.ToString());
+
+            if (await check.ExecuteScalarAsync(cancellationToken) is null)
+            {
+                transaction.Rollback();
+                return false;
+            }
+        }
+
+        await using (var delete = connection.CreateCommand())
+        {
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM ShotCharacters WHERE ShotId = $id;";
+            delete.Parameters.AddWithValue("$id", shotId.ToString());
+            await delete.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        for (var i = 0; i < characterIds.Count; i++)
+        {
+            await using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO ShotCharacters (ShotId, CharacterId, Sequence)
+                VALUES ($shotId, $characterId, $sequence);
+                """;
+            insert.Parameters.AddWithValue("$shotId", shotId.ToString());
+            insert.Parameters.AddWithValue("$characterId", characterIds[i].ToString());
+            insert.Parameters.AddWithValue("$sequence", i + 1);
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        transaction.Commit();
+        return true;
+    }
     public async Task<Scene?> CreateSceneAsync(
         Guid episodeId,
         string name,
@@ -537,35 +598,56 @@ public sealed class SqliteStoryRepository : IStoryRepository
     {
         var shots = new List<Shot>();
 
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT Id, Sequence, DurationTicks, Action, Emotion, Camera, Lighting
-            FROM Shots
-            WHERE SceneId = $sceneId
-            ORDER BY Sequence, rowid;
-            """;
-        command.Parameters.AddWithValue("$sceneId", sceneId.ToString());
-
-        await using var reader =
-            await command.ExecuteReaderAsync(cancellationToken);
-
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var command = connection.CreateCommand())
         {
-            shots.Add(new Shot(
-                reader.GetInt32(1),
-                TimeSpan.FromTicks(reader.GetInt64(2)),
-                reader.GetString(3),
-                reader.GetString(4),
-                reader.GetString(5),
-                reader.GetString(6))
+            command.CommandText = """
+                SELECT Id, Sequence, DurationTicks, Action, Emotion, Camera, Lighting
+                FROM Shots
+                WHERE SceneId = $sceneId
+                ORDER BY Sequence, rowid;
+                """;
+            command.Parameters.AddWithValue("$sceneId", sceneId.ToString());
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
-                Id = Guid.Parse(reader.GetString(0))
-            });
+                shots.Add(new Shot(
+                    reader.GetInt32(1),
+                    TimeSpan.FromTicks(reader.GetInt64(2)),
+                    reader.GetString(3),
+                    reader.GetString(4),
+                    reader.GetString(5),
+                    reader.GetString(6))
+                {
+                    Id = Guid.Parse(reader.GetString(0))
+                });
+            }
+        }
+
+        foreach (var shot in shots)
+        {
+            var characterIds = new List<Guid>();
+
+            await using var characterCommand = connection.CreateCommand();
+            characterCommand.CommandText = """
+                SELECT CharacterId
+                FROM ShotCharacters
+                WHERE ShotId = $shotId
+                ORDER BY Sequence;
+                """;
+            characterCommand.Parameters.AddWithValue("$shotId", shot.Id.ToString());
+
+            await using var characterReader =
+                await characterCommand.ExecuteReaderAsync(cancellationToken);
+
+            while (await characterReader.ReadAsync(cancellationToken))
+                characterIds.Add(Guid.Parse(characterReader.GetString(0)));
+
+            shot.SetCharacterIds(characterIds);
         }
 
         return shots;
     }
-
     private static async Task EnsureSchemaAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -613,6 +695,16 @@ public sealed class SqliteStoryRepository : IStoryRepository
                 FOREIGN KEY (SceneId) REFERENCES Scenes(Id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS ShotCharacters (
+                ShotId TEXT NOT NULL,
+                CharacterId TEXT NOT NULL,
+                Sequence INTEGER NOT NULL,
+                PRIMARY KEY (ShotId, CharacterId),
+                FOREIGN KEY (ShotId) REFERENCES Shots(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ShotCharacters_ShotId
+                ON ShotCharacters(ShotId);
             CREATE INDEX IF NOT EXISTS IX_Episodes_StoryId
                 ON Episodes(StoryId);
 

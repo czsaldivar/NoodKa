@@ -52,3 +52,15 @@ desktop.ini
 asset-to-shot-context.txt
 
 character-editing-patch-context.txt
+
+# Private reference photos kept in the repository root
+/*.jpg
+/*.jpeg
+/*.png
+
+# Local NoodKa diagnostics and security audit reports
+/multicharacter-*.txt
+/noodka-*.txt
+/infrastructure-test-results.txt
+/NoodKa API.txt
+/NoodKa VITE.txt

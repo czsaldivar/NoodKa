@@ -16,6 +16,21 @@ public sealed class Shot
 
     public string Lighting { get; }
 
+    public IReadOnlyList<Guid> CharacterIds { get; private set; } = Array.Empty<Guid>();
+
+    public void SetCharacterIds(IEnumerable<Guid> characterIds)
+    {
+        ArgumentNullException.ThrowIfNull(characterIds);
+        var ids = characterIds.ToArray();
+
+        if (ids.Any(id => id == Guid.Empty))
+            throw new ArgumentException("Character IDs cannot contain an empty ID.", nameof(characterIds));
+
+        if (ids.Distinct().Count() != ids.Length)
+            throw new ArgumentException("Character IDs cannot contain duplicates.", nameof(characterIds));
+
+        CharacterIds = Array.AsReadOnly(ids);
+    }
     public Shot(
         int sequence,
         TimeSpan duration,
