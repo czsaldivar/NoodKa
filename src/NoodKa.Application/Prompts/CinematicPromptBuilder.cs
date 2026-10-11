@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace NoodKa.Application.Prompts;
 
@@ -17,13 +17,17 @@ public sealed class CinematicPromptBuilder
         if (request.Characters.Count > 0)
         {
             prompt.Append("featuring ");
-
-            prompt.Append(
-                string.Join(
-                    " and ",
-                    request.Characters));
-
+            prompt.Append(string.Join(" and ", request.Characters));
             prompt.Append(". ");
+        }
+
+        if (request.Characters.Count > 0)
+        {
+            prompt.Append(
+                "Identity preservation: use the supplied character reference images "
+                + "to preserve each selected character's recognizable facial features, "
+                + "hairstyle, and overall appearance. Keep the characters visually "
+                + "distinct. Do not merge, swap, or unintentionally duplicate their identities. ");
         }
 
         if (!string.IsNullOrWhiteSpace(request.CharacterVisualDescription))
@@ -37,6 +41,12 @@ public sealed class CinematicPromptBuilder
 
         prompt.Append(
             request.Action.TrimEnd('.') + ". ");
+
+        prompt.Append(
+            "Composition fidelity: follow the described action and requested placement "
+            + "of every character. If a character is specified as appearing on a phone "
+            + "screen, photograph, reflection, or other framed surface, keep that character "
+            + "within that surface unless the action explicitly says otherwise. ");
 
         if (!string.IsNullOrWhiteSpace(request.Emotion))
         {

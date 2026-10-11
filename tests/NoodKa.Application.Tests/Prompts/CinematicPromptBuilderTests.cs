@@ -1,4 +1,4 @@
-using NoodKa.Application.Prompts;
+﻿using NoodKa.Application.Prompts;
 
 namespace NoodKa.Application.Tests.Prompts;
 
@@ -102,6 +102,51 @@ public sealed class CinematicPromptBuilderTests
         Assert.Contains("blue blouse", result.Prompt);
     }
 
+    [Fact]
+    public void Build_EmphasizesIdentityPreservationForMultipleCharacters()
+    {
+        var builder = new CinematicPromptBuilder();
+
+        var request = new CinematicPromptRequest(
+            location: "BYU-Hawaii campus",
+            action: "Tinn calls Zhay-Zhay",
+            emotion: "happy and homesick",
+            camera: "medium close-up",
+            lighting: "soft late afternoon light",
+            visualStyle: "photorealistic cinematic film still",
+            characters: ["Tinn", "Zhay-Zhay"],
+            characterVisualDescription: "Tinn: long dark hair; Zhay-Zhay: shoulder-length dark hair");
+
+        var result = builder.Build(request);
+
+        Assert.Contains("Tinn and Zhay-Zhay", result.Prompt);
+        Assert.Contains("Identity preservation", result.Prompt);
+        Assert.Contains("supplied character reference images", result.Prompt);
+        Assert.Contains("Keep the characters visually distinct", result.Prompt);
+        Assert.Contains("Do not merge, swap", result.Prompt);
+        Assert.Contains("Tinn: long dark hair", result.Prompt);
+    }
+
+    [Fact]
+    public void Build_PreservesRequestedPhoneScreenComposition()
+    {
+        var builder = new CinematicPromptBuilder();
+
+        var request = new CinematicPromptRequest(
+            location: "BYU-Hawaii campus bench",
+            action: "Tinn talks to Zhay-Zhay, who appears on the phone screen",
+            emotion: "joyful and affectionate",
+            camera: "medium close-up with the phone screen visible",
+            lighting: "soft late afternoon light",
+            visualStyle: "photorealistic cinematic film still",
+            characters: ["Tinn", "Zhay-Zhay"]);
+
+        var result = builder.Build(request);
+
+        Assert.Contains("requested placement", result.Prompt);
+        Assert.Contains("phone screen", result.Prompt);
+        Assert.Contains("within that surface", result.Prompt);
+    }
     [Fact]
     public void Build_RejectsMissingLocation()
     {
