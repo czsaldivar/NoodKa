@@ -48,6 +48,14 @@ public sealed class CinematicPromptBuilder
             + "screen, photograph, reflection, or other framed surface, keep that character "
             + "within that surface unless the action explicitly says otherwise. ");
 
+        prompt.Append(
+            "Shot continuity: when this shot belongs to the same continuous scene and time, "
+            + "preserve established character clothing, accessories, hairstyle, and relevant "
+            + "environmental details unless the action or story explicitly changes them. "
+            + "Keep character appearance and scene details consistent across related shots. "
+            + "Honor explicitly requested changes in wardrobe, location, time, lighting, "
+            + "or composition rather than forcing continuity where a change is intended. ");
+
         if (!string.IsNullOrWhiteSpace(request.Emotion))
         {
             prompt.Append(

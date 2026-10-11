@@ -148,6 +148,30 @@ public sealed class CinematicPromptBuilderTests
         Assert.Contains("within that surface", result.Prompt);
     }
     [Fact]
+    public void Build_EmphasizesShotContinuityWithoutBlockingExplicitChanges()
+    {
+        var builder = new CinematicPromptBuilder();
+
+        var request = new CinematicPromptRequest(
+            location: "a warm Filipino home kitchen",
+            action: "The sisters continue preparing snacks in the same scene",
+            emotion: "happy and relaxed",
+            camera: "medium two-shot",
+            lighting: "warm morning light",
+            visualStyle: "photorealistic cinematic film still",
+            characters: ["Tinn", "Zhay-Zhay"]);
+
+        var result = builder.Build(request);
+
+        Assert.Contains("Shot continuity", result.Prompt);
+        Assert.Contains("same continuous scene and time", result.Prompt);
+        Assert.Contains("clothing, accessories, hairstyle", result.Prompt);
+        Assert.Contains("environmental details", result.Prompt);
+        Assert.Contains("explicitly requested changes", result.Prompt);
+        Assert.Contains("rather than forcing continuity", result.Prompt);
+    }
+
+    [Fact]
     public void Build_RejectsMissingLocation()
     {
         Assert.Throws<ArgumentException>(
