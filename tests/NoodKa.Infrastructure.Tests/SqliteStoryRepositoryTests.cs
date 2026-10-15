@@ -388,7 +388,7 @@ public sealed class SqliteStoryRepositoryTests
                 "A survivor turns toward the window.",
                 "Uneasy anticipation",
                 "Slow push-in",
-                "Low-key blue lighting");
+                "Low-key blue lighting", title: "Rain on the Windshield");
 
             var second = await repository.CreateShotAsync(
                 scene.Id,
@@ -396,7 +396,7 @@ public sealed class SqliteStoryRepositoryTests
                 "A distant light flickers on.",
                 "Renewed hope",
                 "Gentle dolly-out",
-                "Warm practical light");
+                "Warm practical light", title: "A Light in the Distance");
 
             Assert.NotNull(first);
             Assert.NotNull(second);
@@ -415,6 +415,8 @@ public sealed class SqliteStoryRepositoryTests
             Assert.Equal(first.Id, savedShots[0].Id);
             Assert.Equal(second.Id, savedShots[1].Id);
 
+            Assert.Equal("Rain on the Windshield", savedShots[0].Title);
+            Assert.Equal("A Light in the Distance", savedShots[1].Title);
             Assert.Equal(TimeSpan.FromSeconds(5), savedShots[0].Duration);
             Assert.Equal(
                 "A survivor turns toward the window.",
@@ -427,6 +429,102 @@ public sealed class SqliteStoryRepositoryTests
             Assert.Equal(
                 "A distant light flickers on.",
                 savedShots[1].Action);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task GetAllAsync_LegacyShotsTable_AddsTitleAndPreservesExistingTitles()
+    {
+        var directory = CreateTestDirectory();
+        var databasePath = Path.Combine(directory, "stories.db");
+        var storyId = Guid.NewGuid();
+        var episodeId = Guid.NewGuid();
+        var sceneId = Guid.NewGuid();
+        var shotId = Guid.NewGuid();
+
+        try
+        {
+            // Create the legacy schema without Shots.Title.
+            await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE Stories (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        Title TEXT NOT NULL,
+                        Description TEXT NOT NULL
+                    );
+                    CREATE TABLE Episodes (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        StoryId TEXT NOT NULL,
+                        Number INTEGER NOT NULL,
+                        Title TEXT NOT NULL
+                    );
+                    CREATE TABLE Scenes (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        EpisodeId TEXT NOT NULL,
+                        Number INTEGER NOT NULL,
+                        Location TEXT NOT NULL
+                    );
+                    CREATE TABLE Shots (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        SceneId TEXT NOT NULL,
+                        Sequence INTEGER NOT NULL,
+                        DurationTicks INTEGER NOT NULL,
+                        Action TEXT NOT NULL,
+                        Emotion TEXT NOT NULL,
+                        Camera TEXT NOT NULL,
+                        Lighting TEXT NOT NULL
+                    );
+                    INSERT INTO Stories (Id, Title, Description)
+                    VALUES ($storyId, 'Legacy Story', 'Migration test');
+                    INSERT INTO Episodes (Id, StoryId, Number, Title)
+                    VALUES ($episodeId, $storyId, 1, 'Episode 1');
+                    INSERT INTO Scenes (Id, EpisodeId, Number, Location)
+                    VALUES ($sceneId, $episodeId, 1, 'Kitchen');
+                    INSERT INTO Shots
+                        (Id, SceneId, Sequence, DurationTicks, Action, Emotion, Camera, Lighting)
+                    VALUES
+                        ($shotId, $sceneId, 1, 50000000,
+                         'A character looks outside', 'Thoughtful', 'Medium shot', 'Soft daylight');
+                    """;
+                command.Parameters.AddWithValue("$storyId", storyId.ToString());
+                command.Parameters.AddWithValue("$episodeId", episodeId.ToString());
+                command.Parameters.AddWithValue("$sceneId", sceneId.ToString());
+                command.Parameters.AddWithValue("$shotId", shotId.ToString());
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var firstLoad = await new SqliteStoryRepository(databasePath).GetAllAsync();
+            var firstShot = Assert.Single(
+                Assert.Single(Assert.Single(Assert.Single(firstLoad).Episodes).Scenes).Shots);
+
+            Assert.Equal(shotId, firstShot.Id);
+            Assert.Equal("Shot 1", firstShot.Title);
+
+            // A later schema initialization must not overwrite a meaningful title.
+            await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = "UPDATE Shots SET Title = $title WHERE Id = $id;";
+                command.Parameters.AddWithValue("$title", "The Unexpected Call");
+                command.Parameters.AddWithValue("$id", shotId.ToString());
+                Assert.Equal(1, await command.ExecuteNonQueryAsync());
+            }
+
+            var secondLoad = await new SqliteStoryRepository(databasePath).GetAllAsync();
+            var secondShot = Assert.Single(
+                Assert.Single(Assert.Single(Assert.Single(secondLoad).Episodes).Scenes).Shots);
+
+            Assert.Equal("The Unexpected Call", secondShot.Title);
         }
         finally
         {
