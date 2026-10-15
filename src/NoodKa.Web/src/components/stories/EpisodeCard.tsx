@@ -34,6 +34,7 @@ export default function EpisodeCard({
 
   return (
     <article
+      id={`episode-${episode.id}`}
       style={{
         padding: '18px',
         border: '1px solid var(--border)',
@@ -68,6 +69,7 @@ export default function EpisodeCard({
         <div style={{ display: 'grid', gap: '14px' }}>
           {episode.scenes.map((scene) => (
             <section
+              id={`scene-${scene.id}`}
               key={scene.id}
               style={{
                 paddingLeft: '14px',

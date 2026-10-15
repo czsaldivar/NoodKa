@@ -158,6 +158,22 @@ export default function StoryManagement({
     selectStory: setSelectedStoryId,
   } = actions;
 
+  const navigateToNode = (
+    type: 'story' | 'episode' | 'scene' | 'shot',
+    id: string,
+  ) => {
+    const targetId = type === 'story'
+      ? 'story-details'
+      : `${type}-${id}`;
+
+    requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    });
+  };
+
   return (
     <section className="stories-view">
       <div className="page-heading">
@@ -195,6 +211,7 @@ export default function StoryManagement({
         selectedStoryId={selectedStoryId}
         storyDetails={storyDetails}
         selectStory={setSelectedStoryId}
+        onSelectNode={navigateToNode}
       />
         </div>
         <div className="story-studio-workspace">
@@ -215,6 +232,7 @@ export default function StoryManagement({
       </div>
 
       <section
+        id="story-details"
         aria-label="Selected story details"
         style={{
           marginTop: '4px',

@@ -7,6 +7,7 @@ type StoryExplorerProps = {
   selectedStoryId: string | null;
   storyDetails: StoryDetails | null;
   selectStory: (storyId: string) => void;
+  onSelectNode: (type: 'story' | 'episode' | 'scene' | 'shot', id: string) => void;
 };
 
 export default function StoryExplorer({
@@ -15,6 +16,7 @@ export default function StoryExplorer({
   selectedStoryId,
   storyDetails,
   selectStory,
+  onSelectNode,
 }: StoryExplorerProps) {
   const [expandedStories, setExpandedStories] = useState<string[]>([]);
   const [expandedEpisodes, setExpandedEpisodes] = useState<string[]>([]);
@@ -83,6 +85,7 @@ export default function StoryExplorer({
                       selectStory(story.id);
                       setExpandedStories((current) =>
                         current.includes(story.id) ? current : [...current, story.id]);
+                      onSelectNode('story', story.id);
                     }}
                   >
                     <span className="story-tree-kind">STORY</span>
@@ -115,7 +118,12 @@ export default function StoryExplorer({
                             <button
                               type="button"
                               className="story-tree-label"
-                              onClick={() => setSelectedNode(episode.id)}
+                              onClick={() => {
+                                setSelectedNode(episode.id);
+                                setExpandedEpisodes((current) =>
+                                  current.includes(episode.id) ? current : [...current, episode.id]);
+                                onSelectNode('episode', episode.id);
+                              }}
                             >
                               <span className="story-tree-kind">EPISODE {episode.number}</span>
                               <span className="story-tree-name">{episode.title}</span>
@@ -145,7 +153,14 @@ export default function StoryExplorer({
                                       <button
                                         type="button"
                                         className="story-tree-label"
-                                        onClick={() => setSelectedNode(scene.id)}
+                                        onClick={() => {
+                                          setSelectedNode(scene.id);
+                                          setExpandedEpisodes((current) =>
+                                            current.includes(episode.id) ? current : [...current, episode.id]);
+                                          setExpandedScenes((current) =>
+                                            current.includes(scene.id) ? current : [...current, scene.id]);
+                                          onSelectNode('scene', scene.id);
+                                        }}
                                       >
                                         <span className="story-tree-kind">SCENE {scene.number}</span>
                                         <span className="story-tree-name">{scene.name}</span>
@@ -161,7 +176,14 @@ export default function StoryExplorer({
                                             type="button"
                                             key={shot.id}
                                             className={`story-tree-shot ${selectedNode === shot.id ? 'is-selected' : ''}`}
-                                            onClick={() => setSelectedNode(shot.id)}
+                                            onClick={() => {
+                                              setSelectedNode(shot.id);
+                                              setExpandedEpisodes((current) =>
+                                                current.includes(episode.id) ? current : [...current, episode.id]);
+                                              setExpandedScenes((current) =>
+                                                current.includes(scene.id) ? current : [...current, scene.id]);
+                                              onSelectNode('shot', shot.id);
+                                            }}
                                           >
                                             <span className="story-tree-shot-mark">SHOT {shot.sequence}</span>
                                             <span className="story-tree-name">{shot.title?.trim() || `Shot ${shot.sequence}`}</span>
