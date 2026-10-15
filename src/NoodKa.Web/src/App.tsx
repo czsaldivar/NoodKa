@@ -175,6 +175,7 @@ function App() {
   const [sceneErrors, setSceneErrors] = useState<Record<string, string>>({})
   const [sceneSuccesses, setSceneSuccesses] = useState<Record<string, string>>({})
   // NOODKA_SHOT_CREATION_V1
+  const [shotTitles, setShotTitles] = useState<Record<string, string>>({})
   const [shotDurations, setShotDurations] = useState<Record<string, string>>({})
   const [shotActions, setShotActions] = useState<Record<string, string>>({})
   const [shotEmotions, setShotEmotions] = useState<Record<string, string>>({})
@@ -668,6 +669,7 @@ function App() {
   ) {
     event.preventDefault()
 
+    const title = (shotTitles[sceneId] ?? '').trim()
     const durationSeconds = Number(shotDurations[sceneId] ?? '5')
     const action = (shotActions[sceneId] ?? '').trim()
     const emotion = (shotEmotions[sceneId] ?? '').trim()
@@ -697,6 +699,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           durationSeconds,
+          title,
           action,
           emotion,
           camera,
@@ -725,6 +728,7 @@ function App() {
       const created = (await response.json()) as {
         id: string
         sequence: number
+        title?: string
         duration: number
         action: string
       }
@@ -748,13 +752,14 @@ function App() {
           : [],
       })
 
+      setShotTitles((current) => ({ ...current, [sceneId]: '' }))
       setShotActions((current) => ({ ...current, [sceneId]: '' }))
       setShotEmotions((current) => ({ ...current, [sceneId]: '' }))
       setShotCameras((current) => ({ ...current, [sceneId]: '' }))
       setShotLighting((current) => ({ ...current, [sceneId]: '' }))
       setShotSuccesses((current) => ({
         ...current,
-        [sceneId]: `Shot ${created.sequence} saved successfully.`,
+        [sceneId]: `${created.title?.trim() || `Shot ${created.sequence}`} saved successfully.`,
       }))
     } catch (cause) {
       setShotErrors((current) => ({
@@ -1581,11 +1586,13 @@ function App() {
                 setSceneLocations,
               },
               shot: {
+                shotTitles,
                 shotDurations,
                 shotActions,
                 shotEmotions,
                 shotCameras,
                 shotLighting,
+                setShotTitles,
                 setShotDurations,
                 setShotActions,
                 setShotEmotions,

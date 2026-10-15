@@ -2,11 +2,13 @@
 
 export default function ShotCreationForm({
   sceneId,
+  shotTitles,
   shotDurations,
   shotActions,
   shotEmotions,
   shotCameras,
   shotLighting,
+  setShotTitles,
   setShotDurations,
   setShotActions,
   setShotEmotions,
@@ -32,6 +34,22 @@ export default function ShotCreationForm({
       }}
     >
       <strong>Add a shot</strong>
+
+      <label htmlFor={`shot-title-${sceneId}`}>
+        Shot title (optional)
+      </label>
+      <input
+        id={`shot-title-${sceneId}`}
+        type="text"
+        placeholder="e.g. Rain on the Windshield"
+        value={shotTitles[sceneId] ?? ''}
+        onChange={(event) =>
+          setShotTitles((current) => ({
+            ...current,
+            [sceneId]: event.target.value,
+          }))
+        }
+      />
 
       <label htmlFor={`shot-duration-${sceneId}`}>
         Duration (seconds)

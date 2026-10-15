@@ -1123,3 +1123,201 @@
 .shot-character-picker:disabled {
   opacity: 0.7;
 }
+/* NOODKA_STORY_EXPLORER_V1 */
+.story-explorer {
+  min-width: 0;
+  margin: 8px 0 24px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.story-explorer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.story-explorer-header h2 {
+  margin: 8px 0 0;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.story-explorer-count {
+  display: grid;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--amber);
+  font-size: 12px;
+}
+
+.story-explorer-hint,
+.story-explorer-empty,
+.story-tree-muted {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.story-explorer-hint {
+  margin: 10px 0 16px;
+}
+
+.story-tree {
+  display: grid;
+  gap: 4px;
+}
+
+.story-tree-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.story-tree-row.is-selected,
+.story-tree-shot.is-selected {
+  border-color: #765a34;
+  background: rgba(190, 139, 65, 0.12);
+}
+
+.story-tree-toggle {
+  flex: 0 0 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--amber);
+  cursor: pointer;
+}
+
+.story-tree-toggle:hover {
+  background: rgba(190, 139, 65, 0.12);
+}
+
+.story-tree-label {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.story-tree-name {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.story-tree-kind,
+.story-tree-shot-mark {
+  color: var(--amber);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.story-tree-children {
+  margin-left: 16px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+.story-tree-muted {
+  margin: 8px;
+}
+
+.story-tree-shot {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  margin: 3px 0;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.story-tree-shot:hover,
+.story-tree-label:hover {
+  background: rgba(190, 139, 65, 0.08);
+}
+
+.story-explorer-footer {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+/* NOODKA_STORY_STUDIO_LAYOUT_V1 */
+.story-studio-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 290px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  padding: 8px 0 38px;
+}
+
+.story-studio-sidebar {
+  position: sticky;
+  top: 18px;
+  min-width: 0;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.story-studio-sidebar .story-explorer {
+  margin: 0;
+  padding: 17px;
+}
+
+.story-studio-sidebar .story-explorer-header h2 {
+  font-size: 21px;
+}
+
+.story-studio-workspace {
+  min-width: 0;
+}
+
+.story-studio-workspace .story-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding-top: 0;
+}
+
+.story-studio-workspace > section[aria-label="Selected story details"] {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 1000px) {
+  .story-studio-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .story-studio-sidebar {
+    position: static;
+    max-height: 420px;
+  }
+}

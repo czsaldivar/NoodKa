@@ -20,7 +20,8 @@ public interface IStoryRepository
         string emotion,
         string camera,
         string lighting,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? title = null);
 
     Task<bool> SetShotCharacterIdsAsync(
         Guid shotId,

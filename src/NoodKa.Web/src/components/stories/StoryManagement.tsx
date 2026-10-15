@@ -1,5 +1,6 @@
-﻿import type { Dispatch, FormEvent, SetStateAction } from 'react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Story, StoryDetails } from './storyTypes';
+import StoryExplorer from './StoryExplorer';
 import StoryCreationForm from './StoryCreationForm';
 import StoryLibrary from './StoryLibrary';
 import StoryDNA from './StoryDNA';
@@ -52,6 +53,8 @@ type StoryManagementProps = {
     };
 
     shot: {
+      shotTitles: Record<string, string>;
+      setShotTitles: Dispatch<SetStateAction<Record<string, string>>>;
       shotDurations: Record<string, string>;
       shotActions: Record<string, string>;
       shotEmotions: Record<string, string>;
@@ -130,11 +133,13 @@ export default function StoryManagement({
   } = forms.scene;
 
   const {
+    shotTitles,
     shotDurations,
     shotActions,
     shotEmotions,
     shotCameras,
     shotLighting,
+    setShotTitles,
     setShotDurations,
     setShotActions,
     setShotEmotions,
@@ -181,6 +186,18 @@ export default function StoryManagement({
           </span>
         </div>
       )}
+
+      <div className="story-studio-layout">
+        <div className="story-studio-sidebar">
+      <StoryExplorer
+        stories={stories}
+        storiesLoading={storiesLoading}
+        selectedStoryId={selectedStoryId}
+        storyDetails={storyDetails}
+        selectStory={setSelectedStoryId}
+      />
+        </div>
+        <div className="story-studio-workspace">
 
       <div className="story-layout">
         <StoryCreationForm
@@ -311,11 +328,13 @@ export default function StoryManagement({
                   createScene,
                 }}
                 shotForm={{
+                  shotTitles,
                   shotDurations,
                   shotActions,
                   shotEmotions,
                   shotCameras,
                   shotLighting,
+                  setShotTitles,
                   setShotDurations,
                   setShotActions,
                   setShotEmotions,
@@ -345,6 +364,8 @@ export default function StoryManagement({
       </>
     )}
     </section>
+        </div>
+      </div>
   </section>
   );
 }

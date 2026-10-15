@@ -302,6 +302,7 @@ app.MapGet("/api/stories/{storyId:guid}", async (
                 {
                     shot.Id,
                     shot.Sequence,
+                    shot.Title,
                     DurationSeconds = shot.Duration.TotalSeconds,
                     shot.Action,
                     shot.Emotion,
@@ -482,7 +483,8 @@ app.MapPost("/api/scenes/{sceneId:guid}/shots", async (
         body.Emotion ?? string.Empty,
         body.Camera ?? string.Empty,
         body.Lighting ?? string.Empty,
-        cancellationToken);
+        cancellationToken,
+        body.Title);
 
     if (shot is null)
     {
@@ -498,6 +500,7 @@ app.MapPost("/api/scenes/{sceneId:guid}/shots", async (
         {
             shot.Id,
             shot.Sequence,
+            shot.Title,
             DurationSeconds = shot.Duration.TotalSeconds,
             shot.Action,
             shot.Emotion,
@@ -1194,7 +1197,7 @@ public sealed record ShotTestRequest(
 
 public sealed record SetShotCharactersRequest(Guid[]? CharacterIds);
 public sealed record CreateEpisodeRequest(string? Title);
-public sealed record CreateShotRequest(double DurationSeconds, string? Action, string? Emotion = null, string? Camera = null, string? Lighting = null);
+public sealed record CreateShotRequest(double DurationSeconds, string? Action, string? Emotion = null, string? Camera = null, string? Lighting = null, string? Title = null);
 record CreateSceneRequest(string? Name, string? Location);
 
 public sealed record CreateStoryRequest(

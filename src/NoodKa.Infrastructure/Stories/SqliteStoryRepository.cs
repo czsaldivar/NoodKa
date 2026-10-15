@@ -118,10 +118,10 @@ public sealed class SqliteStoryRepository : IStoryRepository
                         command.CommandText = """
                             INSERT INTO Shots
                                 (Id, SceneId, Sequence, DurationTicks,
-                                 Action, Emotion, Camera, Lighting)
+                                 Action, Emotion, Camera, Lighting, Title)
                             VALUES
                                 ($id, $sceneId, $sequence, $durationTicks,
-                                 $action, $emotion, $camera, $lighting);
+                                 $action, $emotion, $camera, $lighting, $title);
                             """;
 
                         command.Parameters.AddWithValue("$id", shot.Id.ToString());
@@ -132,6 +132,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
                         command.Parameters.AddWithValue("$emotion", shot.Emotion);
                         command.Parameters.AddWithValue("$camera", shot.Camera);
                         command.Parameters.AddWithValue("$lighting", shot.Lighting);
+                        command.Parameters.AddWithValue("$title", shot.Title);
 
                         await command.ExecuteNonQueryAsync(cancellationToken);
                     }
@@ -229,7 +230,8 @@ public sealed class SqliteStoryRepository : IStoryRepository
         string emotion,
         string camera,
         string lighting,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? title = null)
     {
         if (sceneId == Guid.Empty)
             throw new ArgumentException("Scene ID is required.", nameof(sceneId));
@@ -282,7 +284,8 @@ public sealed class SqliteStoryRepository : IStoryRepository
             action.Trim(),
             emotion?.Trim() ?? string.Empty,
             camera?.Trim() ?? string.Empty,
-            lighting?.Trim() ?? string.Empty);
+            lighting?.Trim() ?? string.Empty,
+            title);
 
         await using (var insertCommand = connection.CreateCommand())
         {
@@ -290,10 +293,10 @@ public sealed class SqliteStoryRepository : IStoryRepository
             insertCommand.CommandText = """
                 INSERT INTO Shots
                     (Id, SceneId, Sequence, DurationTicks,
-                     Action, Emotion, Camera, Lighting)
+                     Action, Emotion, Camera, Lighting, Title)
                 VALUES
                     ($id, $sceneId, $sequence, $durationTicks,
-                     $action, $emotion, $camera, $lighting);
+                     $action, $emotion, $camera, $lighting, $title);
                 """;
             insertCommand.Parameters.AddWithValue("$id", shot.Id.ToString());
             insertCommand.Parameters.AddWithValue("$sceneId", sceneId.ToString());
@@ -303,6 +306,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
             insertCommand.Parameters.AddWithValue("$emotion", shot.Emotion);
             insertCommand.Parameters.AddWithValue("$camera", shot.Camera);
             insertCommand.Parameters.AddWithValue("$lighting", shot.Lighting);
+            insertCommand.Parameters.AddWithValue("$title", shot.Title);
 
             await insertCommand.ExecuteNonQueryAsync(cancellationToken);
         }
@@ -601,7 +605,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT Id, Sequence, DurationTicks, Action, Emotion, Camera, Lighting
+                SELECT Id, Sequence, DurationTicks, Action, Emotion, Camera, Lighting, Title
                 FROM Shots
                 WHERE SceneId = $sceneId
                 ORDER BY Sequence, rowid;
@@ -617,7 +621,8 @@ public sealed class SqliteStoryRepository : IStoryRepository
                     reader.GetString(3),
                     reader.GetString(4),
                     reader.GetString(5),
-                    reader.GetString(6))
+                    reader.GetString(6),
+                    reader.GetString(7))
                 {
                     Id = Guid.Parse(reader.GetString(0))
                 });
@@ -692,6 +697,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
                 Emotion TEXT NOT NULL,
                 Camera TEXT NOT NULL,
                 Lighting TEXT NOT NULL,
+                Title TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY (SceneId) REFERENCES Scenes(Id) ON DELETE CASCADE
             );
 
@@ -719,6 +725,43 @@ public sealed class SqliteStoryRepository : IStoryRepository
 
         await EnsureStoryDnaColumnsAsync(connection, cancellationToken);
         await EnsureSceneNameColumnAsync(connection, cancellationToken);
+        await EnsureShotTitleColumnAsync(connection, cancellationToken);
+    }
+
+    private static async Task EnsureShotTitleColumnAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var hasTitleColumn = false;
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(Shots);";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                if (string.Equals(reader.GetString(1), "Title", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasTitleColumn = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasTitleColumn)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "ALTER TABLE Shots ADD COLUMN Title TEXT NOT NULL DEFAULT ''; ";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText =
+                "UPDATE Shots SET Title = 'Shot ' || Sequence WHERE Title IS NULL OR TRIM(Title) = ''; ";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     private static async Task EnsureSceneNameColumnAsync(

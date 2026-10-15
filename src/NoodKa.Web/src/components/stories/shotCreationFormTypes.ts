@@ -2,11 +2,13 @@
 
 export type ShotCreationFormProps = {
   sceneId: string;
+  shotTitles: Record<string, string>;
   shotDurations: Record<string, string>;
   shotActions: Record<string, string>;
   shotEmotions: Record<string, string>;
   shotCameras: Record<string, string>;
   shotLighting: Record<string, string>;
+  setShotTitles: Dispatch<SetStateAction<Record<string, string>>>;
   setShotDurations: Dispatch<SetStateAction<Record<string, string>>>;
   setShotActions: Dispatch<SetStateAction<Record<string, string>>>;
   setShotEmotions: Dispatch<SetStateAction<Record<string, string>>>;

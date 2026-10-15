@@ -16,6 +16,8 @@ public sealed class Shot
 
     public string Lighting { get; }
 
+    public string Title { get; }
+
     public IReadOnlyList<Guid> CharacterIds { get; private set; } = Array.Empty<Guid>();
 
     public void SetCharacterIds(IEnumerable<Guid> characterIds)
@@ -37,7 +39,8 @@ public sealed class Shot
         string action,
         string emotion,
         string camera,
-        string lighting)
+        string lighting,
+        string? title = null)
     {
         if (sequence <= 0)
             throw new ArgumentOutOfRangeException(nameof(sequence));
@@ -51,5 +54,8 @@ public sealed class Shot
         Emotion = emotion ?? string.Empty;
         Camera = camera ?? string.Empty;
         Lighting = lighting ?? string.Empty;
+        Title = string.IsNullOrWhiteSpace(title)
+            ? $"Shot {sequence}"
+            : title.Trim();
     }
 }

@@ -14,6 +14,7 @@ export type Story = {
 export type StoryShot = {
   id: string
   sequence: number
+  title: string
   duration: number
   action: string
   emotion: string

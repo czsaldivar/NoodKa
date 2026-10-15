@@ -19,8 +19,11 @@ export default function ShotCard({
       className={highlighted ? 'story-shot-target' : undefined}
       style={{ marginTop: '8px', scrollMarginTop: '100px' }}
     >
-      <strong>Shot {shot.sequence}</strong>
-      <span aria-hidden="true">&mdash;</span>
+      <strong>Shot {shot.sequence}{shot.title?.trim() ? ` — ${shot.title.trim()}` : ''}</strong>
+
+      <div className="story-panel-description">
+        {shot.action}
+      </div>
 
       <div className="story-panel-description">
         {[
